@@ -1,0 +1,792 @@
+import { Button, LineEdit, ComboBox, CheckBox, ListView, TextEdit, TabWidget, Palette, ScrollView } from "std-widgets.slint";
+
+export struct ObjectRow {
+    index: int,
+    index-text: string,
+    name: string,
+    kind: string,
+    disabled: bool,
+    // Group title row ("Communication", ...), not an object.
+    header: bool,
+}
+
+export struct SubRow {
+    sub: int,
+    sub-text: string,
+    name: string,
+    type-name: string,
+    access: string,
+    pdo: string,
+    default-value: string,
+}
+
+export struct FormField {
+    key: string,
+    label: string,
+    value: string,
+    hint: string,
+}
+
+// State pushed in by Rust, and the actions Rust handles. Edits are reported
+// as (field, value) string pairs to keep the glue small.
+export global App {
+    in property <string> status;
+    in property <bool> status-is-error;
+    in property <string> file-label: "Untitled";
+    in property <bool> dirty;
+
+    in property <[ObjectRow]> objects;
+    in property <int> selected-index: -1;
+    in-out property <string> filter;
+
+    in property <[string]> kind-names;
+    in property <[string]> type-names;
+    in property <[string]> access-names;
+    in property <[string]> pdo-names;
+
+    // Selected object.
+    in property <bool> has-object;
+    in property <bool> obj-is-var;
+    in-out property <string> obj-index-text;
+    in-out property <string> obj-name;
+    in-out property <int> obj-kind;
+    in-out property <bool> obj-enabled;
+    in-out property <bool> obj-callback;
+    in-out property <string> obj-description;
+    in property <string> obj-note;
+    in property <[SubRow]> subs;
+    in property <int> selected-sub: -1;
+
+    // Selected subindex.
+    in property <bool> has-sub;
+    in-out property <string> sub-name;
+    in-out property <int> sub-type;
+    in-out property <int> sub-access;
+    in-out property <int> sub-pdo;
+    in-out property <string> sub-default;
+    in-out property <string> sub-min;
+    in-out property <string> sub-max;
+    in-out property <string> sub-description;
+    in-out property <bool> sub-save;
+
+    in property <[FormField]> device-fields;
+    in property <[FormField]> canfestival-fields;
+
+    callback new-project();
+    callback open-project();
+    callback save-project();
+    callback save-project-as();
+    callback export-c();
+    callback export-eds();
+    callback export-docs();
+
+    callback filter-changed(string);
+    callback select-object(int);
+    callback add-object(string, string, string);
+    callback delete-object();
+    callback object-edited(string, string);
+    callback select-sub(int);
+    callback add-sub();
+    callback delete-sub();
+    callback sub-edited(string, string);
+    callback settings-edited(string, string);
+}
+
+global Ui {
+    out property <length> gap: 8px;
+    out property <length> half-gap: 4px;
+    out property <length> row-height: 28px;
+    out property <brush> muted: Palette.foreground.transparentize(0.45);
+    out property <brush> hover: Palette.foreground.transparentize(0.93);
+}
+
+component Caption inherits Text {
+    color: Ui.muted;
+    font-size: 0.85rem;
+    vertical-alignment: center;
+}
+
+component Heading inherits Text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    vertical-alignment: center;
+}
+
+// A labelled form control: caption above the control.
+component Field inherits VerticalLayout {
+    in property <string> label;
+    spacing: Ui.half-gap;
+    alignment: start;
+    vertical-stretch: 0;
+    Caption {
+        text: root.label;
+    }
+
+    @children
+}
+
+component Separator inherits Rectangle {
+    background: Palette.border;
+}
+
+component ObjectItem inherits Rectangle {
+    in property <ObjectRow> item;
+    in property <bool> selected;
+    callback clicked();
+    height: Ui.row-height;
+    background: item.header ? Palette.alternate-background : selected ? Palette.selection-background : touch.has-hover ? Ui.hover : transparent;
+    touch := TouchArea {
+        enabled: !item.header;
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: Ui.gap;
+        padding-right: Ui.gap;
+        spacing: Ui.gap;
+        if item.header: Caption {
+            text: item.name;
+            font-weight: 600;
+        }
+        if !item.header: Text {
+            text: item.index-text;
+            width: 52px;
+            font-family: "Menlo";
+            vertical-alignment: center;
+            color: root.selected ? Palette.selection-foreground : item.disabled ? Ui.muted : Palette.foreground;
+        }
+        if !item.header: Text {
+            text: item.name;
+            horizontal-stretch: 1;
+            overflow: elide;
+            vertical-alignment: center;
+            color: root.selected ? Palette.selection-foreground : item.disabled ? Ui.muted : Palette.foreground;
+        }
+        if !item.header: Text {
+            text: item.kind;
+            font-size: 0.8rem;
+            vertical-alignment: center;
+            color: root.selected ? Palette.selection-foreground : Ui.muted;
+        }
+    }
+}
+
+component SubCells inherits HorizontalLayout {
+    in property <SubRow> item;
+    in property <brush> color: Palette.foreground;
+    in property <int> weight: 400;
+    in property <string> mono: "Menlo";
+    padding-left: Ui.gap;
+    padding-right: Ui.gap;
+    spacing: Ui.gap;
+    Text {
+        text: item.sub-text;
+        width: 40px;
+        font-family: root.mono;
+        vertical-alignment: center;
+        color: root.color;
+        font-weight: root.weight;
+    }
+
+    Text {
+        text: item.name;
+        horizontal-stretch: 1;
+        overflow: elide;
+        vertical-alignment: center;
+        color: root.color;
+        font-weight: root.weight;
+    }
+
+    Text {
+        text: item.type-name;
+        width: 64px;
+        vertical-alignment: center;
+        color: root.color;
+        font-weight: root.weight;
+    }
+
+    Text {
+        text: item.access;
+        width: 52px;
+        vertical-alignment: center;
+        color: root.color;
+        font-weight: root.weight;
+    }
+
+    Text {
+        text: item.pdo;
+        width: 64px;
+        vertical-alignment: center;
+        color: root.color;
+        font-weight: root.weight;
+    }
+
+    Text {
+        text: item.default-value;
+        width: 130px;
+        overflow: elide;
+        font-family: root.mono;
+        vertical-alignment: center;
+        color: root.color;
+        font-weight: root.weight;
+    }
+}
+
+component SubItem inherits Rectangle {
+    in property <SubRow> item;
+    in property <bool> selected;
+    callback clicked();
+    height: Ui.row-height;
+    background: selected ? Palette.selection-background : touch.has-hover ? Ui.hover : transparent;
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    SubCells {
+        item: root.item;
+        color: root.selected ? Palette.selection-foreground : Palette.foreground;
+    }
+}
+
+component FormRows inherits VerticalLayout {
+    in property <[FormField]> fields;
+    spacing: Ui.gap;
+    for f in root.fields: HorizontalLayout {
+        spacing: Ui.gap;
+        Text {
+            text: f.label;
+            width: 180px;
+            vertical-alignment: center;
+        }
+
+        LineEdit {
+            text: f.value;
+            width: 280px;
+            edited(text) => {
+                App.settings-edited(f.key, text);
+            }
+        }
+
+        Caption {
+            text: f.hint;
+            horizontal-stretch: 1;
+        }
+    }
+}
+
+component ObjectList inherits VerticalLayout {
+    property <bool> adding;
+    spacing: Ui.gap;
+    padding: Ui.gap;
+    LineEdit {
+        placeholder-text: "Filter by index or name";
+        text <=> App.filter;
+        edited(text) => {
+            App.filter-changed(text);
+        }
+    }
+
+    HorizontalLayout {
+        spacing: Ui.gap;
+        Button {
+            text: root.adding ? "Cancel" : "Add object";
+            clicked => {
+                root.adding = !root.adding;
+            }
+        }
+
+        Button {
+            text: "Delete";
+            enabled: App.has-object;
+            clicked => {
+                App.delete-object();
+            }
+        }
+
+        Rectangle { }
+    }
+
+    if root.adding: Rectangle {
+        background: Palette.alternate-background;
+        border-radius: 6px;
+        VerticalLayout {
+            padding: Ui.gap;
+            spacing: Ui.gap;
+            HorizontalLayout {
+                spacing: Ui.gap;
+                Field {
+                    label: "Index (hex)";
+                    width: 88px;
+                    new-index := LineEdit {
+                        placeholder-text: "2000";
+                    }
+                }
+
+                Field {
+                    label: "Kind";
+                    new-kind := ComboBox {
+                        model: App.kind-names;
+                        current-index: 0;
+                    }
+                }
+            }
+
+            Field {
+                label: "Name";
+                new-name := LineEdit {
+                    placeholder-text: "New object";
+                    accepted => {
+                        create.clicked();
+                    }
+                }
+            }
+
+            create := Button {
+                text: "Create";
+                primary: true;
+                clicked => {
+                    App.add-object(new-index.text, new-name.text, new-kind.current-value);
+                    root.adding = false;
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        border-width: 1px;
+        border-color: Palette.border;
+        border-radius: 6px;
+        clip: true;
+        vertical-stretch: 1;
+        ListView {
+            for entry in App.objects: ObjectItem {
+                item: entry;
+                selected: !entry.header && entry.index == App.selected-index;
+                clicked => {
+                    App.select-object(entry.index);
+                }
+            }
+        }
+    }
+}
+
+component ObjectPane inherits VerticalLayout {
+    spacing: Ui.gap;
+    padding: Ui.gap;
+    HorizontalLayout {
+        spacing: Ui.gap;
+        Field {
+            label: "Index (hex, Enter to apply)";
+            width: 160px;
+            LineEdit {
+                text <=> App.obj-index-text;
+                font-family: "Menlo";
+                accepted => {
+                    App.object-edited("index", self.text);
+                }
+            }
+        }
+
+        Field {
+            label: "Name";
+            horizontal-stretch: 1;
+            LineEdit {
+                text <=> App.obj-name;
+                edited(text) => {
+                    App.object-edited("name", text);
+                }
+            }
+        }
+
+        Field {
+            label: "Kind";
+            width: 150px;
+            ComboBox {
+                model: App.kind-names;
+                current-index <=> App.obj-kind;
+                selected(value) => {
+                    App.object-edited("kind", value);
+                }
+            }
+        }
+    }
+
+    HorizontalLayout {
+        spacing: Ui.gap * 2;
+        CheckBox {
+            text: "Enabled (included in exports)";
+            checked <=> App.obj-enabled;
+            toggled => {
+                App.object-edited("enabled", self.checked ? "true" : "false");
+            }
+        }
+
+        CheckBox {
+            text: "CanFestival callbacks";
+            checked <=> App.obj-callback;
+            toggled => {
+                App.object-edited("callback", self.checked ? "true" : "false");
+            }
+        }
+
+        Rectangle { }
+    }
+
+    if App.obj-note != "": Caption {
+        text: App.obj-note;
+        wrap: word-wrap;
+        vertical-stretch: 0;
+    }
+    Field {
+        label: "Description";
+        TextEdit {
+            height: 72px;
+            text <=> App.obj-description;
+            edited(text) => {
+                App.object-edited("description", text);
+            }
+        }
+    }
+
+    HorizontalLayout {
+        spacing: Ui.gap;
+        Heading {
+            text: App.obj-is-var ? "Value" : "Subindexes";
+            horizontal-stretch: 1;
+        }
+
+        Button {
+            text: "Add subindex";
+            enabled: !App.obj-is-var;
+            clicked => {
+                App.add-sub();
+            }
+        }
+
+        Button {
+            text: "Remove";
+            enabled: !App.obj-is-var && App.has-sub;
+            clicked => {
+                App.delete-sub();
+            }
+        }
+    }
+
+    Rectangle {
+        border-width: 1px;
+        border-color: Palette.border;
+        border-radius: 6px;
+        clip: true;
+        vertical-stretch: 1;
+        VerticalLayout {
+            Rectangle {
+                height: Ui.row-height;
+                background: Palette.alternate-background;
+                SubCells {
+                    item: {
+                        sub-text: "Sub",
+                        name: "Name",
+                        type-name: "Type",
+                        access: "Access",
+                        pdo: "PDO",
+                        default-value: "Default",
+                    };
+                    color: Ui.muted;
+                    weight: 600;
+                    mono: "";
+                }
+            }
+
+            ListView {
+                for entry[i] in App.subs: SubItem {
+                    item: entry;
+                    selected: i == App.selected-sub;
+                    clicked => {
+                        App.select-sub(i);
+                    }
+                }
+            }
+        }
+    }
+}
+
+component SubInspector inherits VerticalLayout {
+    spacing: Ui.gap;
+    padding: Ui.gap;
+    alignment: start;
+    Heading {
+        text: App.obj-is-var ? "Value" : "Subindex";
+    }
+
+    Field {
+        label: App.obj-is-var ? "Name (same as object)" : "Name";
+        LineEdit {
+            enabled: !App.obj-is-var;
+            text <=> App.sub-name;
+            edited(text) => {
+                App.sub-edited("name", text);
+            }
+        }
+    }
+
+    HorizontalLayout {
+        spacing: Ui.gap;
+        Field {
+            label: "Data type";
+            ComboBox {
+                model: App.type-names;
+                current-index <=> App.sub-type;
+                selected(value) => {
+                    App.sub-edited("type", value);
+                }
+            }
+        }
+
+        Field {
+            label: "Access";
+            ComboBox {
+                model: App.access-names;
+                current-index <=> App.sub-access;
+                selected(value) => {
+                    App.sub-edited("access", value);
+                }
+            }
+        }
+    }
+
+    Field {
+        label: "PDO mapping";
+        ComboBox {
+            model: App.pdo-names;
+            current-index <=> App.sub-pdo;
+            selected(value) => {
+                App.sub-edited("pdo", value);
+            }
+        }
+    }
+
+    Field {
+        label: "Default value";
+        LineEdit {
+            text <=> App.sub-default;
+            font-family: "Menlo";
+            placeholder-text: "0, 0x10, $NODEID+0x180, text";
+            edited(text) => {
+                App.sub-edited("default", text);
+            }
+        }
+    }
+
+    HorizontalLayout {
+        spacing: Ui.gap;
+        Field {
+            label: "Minimum";
+            LineEdit {
+                text <=> App.sub-min;
+                edited(text) => {
+                    App.sub-edited("min", text);
+                }
+            }
+        }
+
+        Field {
+            label: "Maximum";
+            LineEdit {
+                text <=> App.sub-max;
+                edited(text) => {
+                    App.sub-edited("max", text);
+                }
+            }
+        }
+    }
+
+    CheckBox {
+        text: "Save to non-volatile memory (TO_BE_SAVE)";
+        checked <=> App.sub-save;
+        toggled => {
+            App.sub-edited("save", self.checked ? "true" : "false");
+        }
+    }
+
+    Field {
+        label: "Description";
+        TextEdit {
+            height: 160px;
+            enabled: !App.obj-is-var;
+            text <=> App.sub-description;
+            edited(text) => {
+                App.sub-edited("description", text);
+            }
+        }
+    }
+
+    if App.obj-is-var: Caption {
+        text: "A VAR keeps its description on the object.";
+    }
+}
+
+component Placeholder inherits Rectangle {
+    in property <string> text;
+    Caption {
+        text: root.text;
+        horizontal-alignment: center;
+    }
+}
+
+export component MainWindow inherits Window {
+    title: (App.dirty ? "● " : "") + App.file-label + " - CANopen Object Dictionary Editor";
+    preferred-width: 1320px;
+    preferred-height: 780px;
+    min-width: 980px;
+    min-height: 560px;
+    background: Palette.background;
+
+    VerticalLayout {
+        // Toolbar
+        HorizontalLayout {
+            padding: Ui.gap;
+            spacing: Ui.gap;
+            Button {
+                text: "New";
+                clicked => {
+                    App.new-project();
+                }
+            }
+
+            Button {
+                text: "Open…";
+                clicked => {
+                    App.open-project();
+                }
+            }
+
+            Button {
+                text: "Save";
+                primary: App.dirty;
+                clicked => {
+                    App.save-project();
+                }
+            }
+
+            Button {
+                text: "Save As…";
+                clicked => {
+                    App.save-project-as();
+                }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+            }
+
+            Caption {
+                text: "Export";
+            }
+
+            Button {
+                text: "C code";
+                clicked => {
+                    App.export-c();
+                }
+            }
+
+            Button {
+                text: "EDS";
+                clicked => {
+                    App.export-eds();
+                }
+            }
+
+            Button {
+                text: "Docs";
+                clicked => {
+                    App.export-docs();
+                }
+            }
+        }
+
+        Separator {
+            height: 1px;
+        }
+
+        TabWidget {
+            vertical-stretch: 1;
+            Tab {
+                title: "Object dictionary";
+                HorizontalLayout {
+                    ObjectList {
+                        width: 340px;
+                    }
+
+                    Separator {
+                        width: 1px;
+                    }
+
+                    if App.has-object: ObjectPane {
+                        horizontal-stretch: 1;
+                    }
+                    if App.has-object: Separator {
+                        width: 1px;
+                    }
+                    if App.has-object && App.has-sub: SubInspector {
+                        width: 352px;
+                    }
+                    if App.has-object && !App.has-sub: Placeholder {
+                        width: 352px;
+                        text: "Select a subindex to edit it";
+                    }
+                    if !App.has-object: Placeholder {
+                        horizontal-stretch: 1;
+                        text: "Select an object, or add one";
+                    }
+                }
+            }
+
+            Tab {
+                title: "Device and generator settings";
+                ScrollView {
+                    VerticalLayout {
+                        padding: Ui.gap * 2;
+                        spacing: Ui.gap * 2;
+                        alignment: start;
+                        Heading {
+                            text: "Device";
+                        }
+
+                        FormRows {
+                            fields: App.device-fields;
+                        }
+
+                        Heading {
+                            text: "CanFestival C generator";
+                        }
+
+                        FormRows {
+                            fields: App.canfestival-fields;
+                        }
+                    }
+                }
+            }
+        }
+
+        Separator {
+            height: 1px;
+        }
+
+        HorizontalLayout {
+            padding-left: Ui.gap;
+            padding-right: Ui.gap;
+            height: 26px;
+            Text {
+                text: App.status;
+                color: App.status-is-error ? #d13438 : Ui.muted;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+    }
+}
