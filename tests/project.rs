@@ -1,7 +1,7 @@
 mod common;
 
-use co_objdict_editor::model::*;
-use co_objdict_editor::project;
+use dictator::model::*;
+use dictator::project;
 
 #[test]
 fn xdd_import_reads_sample() {

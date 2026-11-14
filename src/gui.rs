@@ -13,9 +13,9 @@ use std::rc::Rc;
 use anyhow::{Result, anyhow, bail};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
-use co_objdict_editor::canfestival::ds301;
-use co_objdict_editor::model::*;
-use co_objdict_editor::{io, project};
+use dictator::canfestival::ds301;
+use dictator::model::*;
+use dictator::{io, project};
 
 slint::include_modules!();
 

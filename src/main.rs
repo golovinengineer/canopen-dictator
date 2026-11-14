@@ -2,21 +2,21 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Result, anyhow, bail};
-use co_objdict_editor::{io, project};
+use dictator::{io, project};
 
 mod gui;
 
 const USAGE: &str = "\
-CANopen object dictionary editor
+dictator - CANopen object dictionary editor
 
 Usage:
-  co_objdict_editor [PROJECT]
+  dictator [PROJECT]
       Open the editor, optionally loading a .objdict.toml project or an .xdd.
 
-  co_objdict_editor export PROJECT [--c FILE.c] [--eds FILE.eds] [--md FILE.md]
+  dictator export PROJECT [--c FILE.c] [--eds FILE.eds] [--md FILE.md]
       Generate CanFestival C (+ .h next to it), EDS and Markdown docs.
 
-  co_objdict_editor import FILE.xdd OUT.objdict.toml
+  dictator import FILE.xdd OUT.objdict.toml
       Convert a CANopenEditor XDD into a native project file.
 ";
 

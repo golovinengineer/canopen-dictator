@@ -1,6 +1,6 @@
-# Development plan
+# Dictator: development plan
 
-Tracking document for the CANopen object dictionary editor. Update the status
+Tracking document for Dictator, the CANopen object dictionary editor. Update the status
 tables when a thread finishes something; add findings to "Notes for whoever
 picks this up" rather than rediscovering them.
 

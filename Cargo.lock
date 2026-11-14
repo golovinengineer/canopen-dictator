@@ -725,18 +725,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "co_objdict_editor"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "rfd",
- "roxmltree",
- "slint",
- "slint-build",
- "toml",
-]
-
-[[package]]
 name = "codespan-reporting"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -952,6 +940,18 @@ dependencies = [
  "rustc_version",
  "syn 2.0.119",
  "unicode-xid",
+]
+
+[[package]]
+name = "dictator"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "rfd",
+ "roxmltree",
+ "slint",
+ "slint-build",
+ "toml",
 ]
 
 [[package]]

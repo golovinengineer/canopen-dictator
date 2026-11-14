@@ -1,6 +1,6 @@
 mod common;
 
-use co_objdict_editor::canfestival::gen_c;
+use dictator::canfestival::gen_c;
 
 /// The reference files were run through clang-format, so only the token
 /// stream is comparable: drop all whitespace.

@@ -1,6 +1,6 @@
 mod common;
 
-use co_objdict_editor::export::eds;
+use dictator::export::eds;
 
 /// Lines that legitimately differ: the sample was exported at a later time
 /// than the project was created, and we keep no modification timestamp.

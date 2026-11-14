@@ -1,6 +1,6 @@
 mod common;
 
-use co_objdict_editor::export::markdown;
+use dictator::export::markdown;
 
 /// Drop CRs (the reference mixes CRLF and LF) and the lines that name the
 /// generating tool, the project file and the modification time.

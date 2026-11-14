@@ -1,5 +1,5 @@
 [package]
-name = "co_objdict_editor"
+name = "dictator"
 version = "0.1.0"
 edition = "2024"
 
