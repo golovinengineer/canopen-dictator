@@ -122,6 +122,23 @@ impl DataType {
             DataType::VisibleString | DataType::OctetString | DataType::UnicodeString
         )
     }
+
+    /// Smallest and largest value of an integer type (BOOLEAN is 0..1);
+    /// `None` for reals, strings and domains.
+    pub fn int_range(self) -> Option<(i128, i128)> {
+        Some(match self {
+            DataType::Boolean => (0, 1),
+            DataType::I8 => (i8::MIN.into(), i8::MAX.into()),
+            DataType::I16 => (i16::MIN.into(), i16::MAX.into()),
+            DataType::I32 => (i32::MIN.into(), i32::MAX.into()),
+            DataType::I64 => (i64::MIN.into(), i64::MAX.into()),
+            DataType::U8 => (0, u8::MAX.into()),
+            DataType::U16 => (0, u16::MAX.into()),
+            DataType::U32 => (0, u32::MAX.into()),
+            DataType::U64 => (0, u64::MAX.into()),
+            _ => return None,
+        })
+    }
 }
 
 /// SDO access. `Rwr`/`Rww` are read-write with a process input/output hint
@@ -440,6 +457,38 @@ pub fn parse_int(s: &str) -> Option<i128> {
     Some(if neg { -v } else { v })
 }
 
+/// Check a default, minimum or maximum written for a value of type `t`, in
+/// the forms the exporters accept: empty (unset), any text for strings and
+/// domains, a decimal number for reals, and for integers `TRUE`/`FALSE`,
+/// `$NODEID` or `$NODEID+offset`, or a decimal or `0x` hex number that fits
+/// the type.
+pub fn check_value(text: &str, t: DataType) -> Result<(), String> {
+    let text = text.trim();
+    if text.is_empty() || t.is_string() || t == DataType::Domain {
+        return Ok(());
+    }
+    let Some((min, max)) = t.int_range() else {
+        return text
+            .parse::<f64>()
+            .map(|_| ())
+            .map_err(|_| format!("{text:?} is not a number"));
+    };
+    let upper = text.to_uppercase();
+    if upper == "TRUE" || upper == "FALSE" {
+        return Ok(());
+    }
+    if let Some(rest) = upper.strip_prefix("$NODEID") {
+        let rest = rest.trim();
+        let ok = rest.is_empty() || rest.strip_prefix('+').and_then(parse_int).is_some();
+        return if ok { Ok(()) } else { Err(format!("{text:?} is not a $NODEID formula")) };
+    }
+    let v = parse_int(text).ok_or_else(|| format!("{text:?} is not a number"))?;
+    if v < min || v > max {
+        return Err(format!("{text} does not fit {}", t.cia_name()));
+    }
+    Ok(())
+}
+
 /// Current UTC time as `YYYY-MM-DDTHH:MM:SS`.
 pub fn now_timestamp() -> String {
     let secs = std::time::SystemTime::now()
@@ -478,4 +527,45 @@ pub fn split_timestamp(ts: &str) -> Option<(u32, u32, u32, u32, u32, u32)> {
         t.next()??,
         t.next().flatten().unwrap_or(0),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn check_value_accepts_exporter_forms() {
+        for (text, t) in [
+            ("", DataType::U8),
+            ("0x10", DataType::U8),
+            ("255", DataType::U8),
+            ("-128", DataType::I8),
+            ("$NODEID+0x180", DataType::U32),
+            ("$nodeid + 0x180", DataType::U32),
+            ("$NODEID", DataType::U8),
+            ("TRUE", DataType::Boolean),
+            ("1", DataType::Boolean),
+            ("1.5e3", DataType::Real32),
+            ("any text", DataType::VisibleString),
+            ("0xFFFFFFFFFFFFFFFF", DataType::U64),
+        ] {
+            assert_eq!(check_value(text, t), Ok(()), "{text:?} as {t:?}");
+        }
+    }
+
+    #[test]
+    fn check_value_rejects_bad_text_and_range() {
+        for (text, t) in [
+            ("bla", DataType::U8),
+            ("256", DataType::U8),
+            ("-1", DataType::U16),
+            ("2", DataType::Boolean),
+            ("0x", DataType::U32),
+            ("$NODEID-1", DataType::U32),
+            ("$NODEID+x", DataType::U32),
+            ("1,5", DataType::Real64),
+        ] {
+            assert!(check_value(text, t).is_err(), "{text:?} as {t:?}");
+        }
+    }
 }

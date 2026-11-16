@@ -112,6 +112,53 @@ fn sync_highest_sub(obj: &mut Object) {
     }
 }
 
+/// Set the device or CanFestival setting `key` from its text.
+fn apply_setting(od: &mut ObjectDictionary, key: &str, value: &str) -> Result<()> {
+    fn num<T: std::str::FromStr>(value: &str, what: &str) -> Result<T> {
+        value.trim().parse().map_err(|_| anyhow!("{what}: {value:?} is not a valid number"))
+    }
+    let v = value.to_string();
+    let (d, c) = (&mut od.device, &mut od.canfestival);
+    match key {
+        "vendor_name" => d.vendor_name = v,
+        "vendor_id" => d.vendor_id = v,
+        "product_name" => d.product_name = v,
+        "product_id" => d.product_id = v,
+        "description" => d.description = v,
+        "file_version" => d.file_version = v,
+        "created_by" => d.created_by = v,
+        "baud_rates" => {
+            d.baud_rates = value
+                .split(',')
+                .map(str::trim)
+                .filter(|p| !p.is_empty())
+                .map(|p| num::<u32>(p, "baud rate"))
+                .collect::<Result<_>>()?
+        }
+        "granularity" => d.granularity = num(value, "granularity")?,
+        "rpdo_count" => d.rpdo_count = num(value, "RPDO count")?,
+        "tpdo_count" => d.tpdo_count = num(value, "TPDO count")?,
+        "node_name" => c.node_name = v.trim().to_string(),
+        "node_id" => {
+            let id: u8 = num(value, "node ID")?;
+            if id > 127 {
+                bail!("node ID must be 0..127");
+            }
+            c.node_id = id;
+        }
+        "node_type" => {
+            c.node_type = match value.trim() {
+                "slave" => NodeType::Slave,
+                "master" => NodeType::Master,
+                other => bail!("node type must be slave or master, not {other:?}"),
+            }
+        }
+        "default_string_size" => c.default_string_size = num(value, "default string size")?,
+        _ => bail!("unknown setting {key}"),
+    }
+    Ok(())
+}
+
 fn change_kind(obj: &mut Object, kind: ObjectKind) {
     match (obj.kind, kind) {
         (a, b) if a == b => {}
@@ -539,57 +586,25 @@ impl Gui {
     }
 
     fn settings_edited(&self, key: &str, value: &str) -> Result<()> {
-        fn num<T: std::str::FromStr>(value: &str, what: &str) -> Result<T> {
-            value.trim().parse().map_err(|_| anyhow!("{what}: {value:?} is not a valid number"))
-        }
-        {
-            let mut st = self.state.borrow_mut();
-            let v = value.to_string();
-            let (d, c) = {
-                let od = &mut st.od;
-                (&mut od.device, &mut od.canfestival)
-            };
-            match key {
-                "vendor_name" => d.vendor_name = v,
-                "vendor_id" => d.vendor_id = v,
-                "product_name" => d.product_name = v,
-                "product_id" => d.product_id = v,
-                "description" => d.description = v,
-                "file_version" => d.file_version = v,
-                "created_by" => d.created_by = v,
-                "baud_rates" => {
-                    d.baud_rates = value
-                        .split(',')
-                        .map(str::trim)
-                        .filter(|p| !p.is_empty())
-                        .map(|p| num::<u32>(p, "baud rate"))
-                        .collect::<Result<_>>()?
-                }
-                "granularity" => d.granularity = num(value, "granularity")?,
-                "rpdo_count" => d.rpdo_count = num(value, "RPDO count")?,
-                "tpdo_count" => d.tpdo_count = num(value, "TPDO count")?,
-                "node_name" => c.node_name = v.trim().to_string(),
-                "node_id" => {
-                    let id: u8 = num(value, "node ID")?;
-                    if id > 127 {
-                        bail!("node ID must be 0..127");
-                    }
-                    c.node_id = id;
-                }
-                "node_type" => {
-                    c.node_type = match value.trim() {
-                        "slave" => NodeType::Slave,
-                        "master" => NodeType::Master,
-                        other => bail!("node type must be slave or master, not {other:?}"),
-                    }
-                }
-                "default_string_size" => c.default_string_size = num(value, "default string size")?,
-                _ => bail!("unknown setting {key}"),
-            }
-        }
+        apply_setting(&mut self.state.borrow_mut().od, key, value)?;
         self.refresh_dirty();
         self.status("");
         Ok(())
+    }
+
+    // --------------------------------------------------------- validation
+
+    /// Whether `text` can become the index of the object at `current`
+    /// (-1 for a new object): a free hex index from 0x1000.
+    fn index_ok(&self, text: &str, current: i32) -> bool {
+        let Ok(index) = parse_hex_index(text) else { return false };
+        i32::from(index) == current || !self.state.borrow().od.objects.contains_key(&index)
+    }
+
+    /// Whether `value` is accepted for the setting `key`.
+    fn setting_ok(&self, key: &str, value: &str) -> bool {
+        let mut od = self.state.borrow().od.clone();
+        apply_setting(&mut od, key, value).is_ok()
     }
 
     // -------------------------------------------------------------- files
@@ -834,6 +849,16 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
     on!(on_delete_sub, |g| g.delete_sub());
     on!(on_sub_edited, |g, key, value| g.sub_edited(&key, &value));
     on!(on_settings_edited, |g, key, value| g.settings_edited(&key, &value));
+
+    // Pure checks behind the red outline of fields whose text won't be accepted.
+    let weak = Rc::downgrade(&gui);
+    app.on_index_ok(move |text, current| weak.upgrade().is_none_or(|g| g.index_ok(&text, current)));
+    app.on_value_ok(|text, type_index| {
+        let t = usize::try_from(type_index).ok().and_then(|i| DataType::ALL.get(i).copied());
+        t.is_none_or(|t| check_value(&text, t).is_ok())
+    });
+    let weak = Rc::downgrade(&gui);
+    app.on_setting_ok(move |key, value| weak.upgrade().is_none_or(|g| g.setting_ok(&key, &value)));
 
     let weak = Rc::downgrade(&gui);
     gui.ui.window().on_close_requested(move || match weak.upgrade() {

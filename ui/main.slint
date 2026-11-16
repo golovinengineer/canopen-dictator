@@ -101,6 +101,15 @@ export global App {
     callback delete-sub();
     callback sub-edited(string, string);
     callback settings-edited(string, string);
+
+    // Checks behind the red outline of a field whose text won't be accepted.
+    // A free hex index from 0x1000; the second argument is the object's
+    // current index, or -1 for a new one.
+    pure callback index-ok(string, int) -> bool;
+    // A default, minimum or maximum for the type at this position in type-names.
+    pure callback value-ok(string, int) -> bool;
+    // A value for the setting with this key.
+    pure callback setting-ok(string, string) -> bool;
 }
 
 global Ui {
@@ -115,6 +124,8 @@ global Ui {
     out property <length> control-height: 32px;
     out property <brush> hover: Palette.foreground.transparentize(0.93);
     out property <string> mono: "JetBrains Mono NL";
+    // Fluent's critical colour.
+    out property <brush> error: Palette.color-scheme == ColorScheme.dark ? #ff99a4 : #c42b1c;
 }
 
 component Caption inherits Text {
@@ -140,6 +151,22 @@ component Field inherits VerticalLayout {
     }
 
     @children
+}
+
+// Outlines its control in red while `invalid`.
+component Checked inherits Rectangle {
+    in property <bool> invalid;
+    VerticalLayout {
+        @children
+    }
+
+    if root.invalid: Rectangle {
+        width: 100%;
+        height: 100%;
+        border-radius: 4px;
+        border-width: 1px;
+        border-color: Ui.error;
+    }
 }
 
 // Every action button has the same size, whatever its label.
@@ -317,11 +344,14 @@ component FormRows inherits VerticalLayout {
             vertical-alignment: center;
         }
 
-        LineEdit {
-            text: f.value;
+        Checked {
             width: 280px;
-            edited(text) => {
-                App.settings-edited(f.key, text);
+            invalid: !App.setting-ok(f.key, value.text);
+            value := LineEdit {
+                text: f.value;
+                edited(text) => {
+                    App.settings-edited(f.key, text);
+                }
             }
         }
 
@@ -384,11 +414,14 @@ component ObjectList inherits VerticalLayout {
                 Field {
                     label: "Index (hex)";
                     width: Ui.button-width;
-                    new-index := LineEdit {
-                        // Fluent's LineEdit is at least 160px wide and would
-                        // spill under the Kind box; four hex digits fit here.
-                        min-width: 0px;
-                        placeholder-text: "2000";
+                    Checked {
+                        invalid: new-index.text != "" && !App.index-ok(new-index.text, -1);
+                        new-index := LineEdit {
+                            // Fluent's LineEdit is at least 160px wide and would
+                            // spill under the Kind box; four hex digits fit here.
+                            min-width: 0px;
+                            placeholder-text: "2000";
+                        }
                     }
                 }
 
@@ -406,7 +439,9 @@ component ObjectList inherits VerticalLayout {
                 new-name := LineEdit {
                     placeholder-text: "New object";
                     accepted => {
-                        create.clicked();
+                        if create.enabled {
+                            create.clicked();
+                        }
                     }
                 }
             }
@@ -414,6 +449,7 @@ component ObjectList inherits VerticalLayout {
             create := ActionButton {
                 text: "Create";
                 primary: true;
+                enabled: App.index-ok(new-index.text, -1);
                 clicked => {
                     App.add-object(new-index.text, new-name.text, new-kind.current-value);
                     root.adding = false;
@@ -456,11 +492,14 @@ component ObjectPane inherits VerticalLayout {
             Field {
                 label: "Index (hex, Enter to apply)";
                 width: 210px;
-                LineEdit {
-                    text <=> App.obj-index-text;
-                    font-family: Ui.mono;
-                    accepted => {
-                        App.object-edited("index", self.text);
+                Checked {
+                    invalid: !App.index-ok(index.text, App.selected-index);
+                    index := LineEdit {
+                        text <=> App.obj-index-text;
+                        font-family: Ui.mono;
+                        accepted => {
+                            App.object-edited("index", self.text);
+                        }
                     }
                 }
             }
@@ -641,12 +680,15 @@ component SubInspector inherits VerticalLayout {
 
     Field {
         label: "Default value";
-        LineEdit {
-            text <=> App.sub-default;
-            font-family: Ui.mono;
-            placeholder-text: "0, 0x10, $NODEID+0x180, text";
-            edited(text) => {
-                App.sub-edited("default", text);
+        Checked {
+            invalid: !App.value-ok(default.text, App.sub-type);
+            default := LineEdit {
+                text <=> App.sub-default;
+                font-family: Ui.mono;
+                placeholder-text: "0, 0x10, $NODEID+0x180, text";
+                edited(text) => {
+                    App.sub-edited("default", text);
+                }
             }
         }
     }
@@ -655,20 +697,26 @@ component SubInspector inherits VerticalLayout {
         spacing: Ui.gap;
         Field {
             label: "Minimum";
-            LineEdit {
-                text <=> App.sub-min;
-                edited(text) => {
-                    App.sub-edited("min", text);
+            Checked {
+                invalid: !App.value-ok(min.text, App.sub-type);
+                min := LineEdit {
+                    text <=> App.sub-min;
+                    edited(text) => {
+                        App.sub-edited("min", text);
+                    }
                 }
             }
         }
 
         Field {
             label: "Maximum";
-            LineEdit {
-                text <=> App.sub-max;
-                edited(text) => {
-                    App.sub-edited("max", text);
+            Checked {
+                invalid: !App.value-ok(max.text, App.sub-type);
+                max := LineEdit {
+                    text <=> App.sub-max;
+                    edited(text) => {
+                        App.sub-edited("max", text);
+                    }
                 }
             }
         }
