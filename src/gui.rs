@@ -752,6 +752,7 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
     on!(on_save_project, |g| g.save_project());
     on!(on_save_project_as, |g| g.save_project_as());
     on!(on_export_c, |g| g.export("CanFestival C code", "ObjDict.c", "c", io::export_c));
+    on!(on_export_od, |g| g.export("CanFestival project", "ObjDict.od", "od", io::export_od));
     on!(on_export_eds, |g| {
         let name = format!("{}.eds", g.project_stem());
         g.export("EDS", &name, "eds", io::export_eds)

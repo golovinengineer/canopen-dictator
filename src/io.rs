@@ -54,6 +54,11 @@ pub fn export_c(od: &ObjectDictionary, path: &Path) -> Result<()> {
     write(&header, h)
 }
 
+/// CanFestival `.od` project, for objdictedit.
+pub fn export_od(od: &ObjectDictionary, path: &Path) -> Result<()> {
+    write(path, canfestival::od::generate(od)?)
+}
+
 pub fn export_eds(od: &ObjectDictionary, path: &Path) -> Result<()> {
     write(path, export::eds::generate(od, &file_name(path)?))
 }

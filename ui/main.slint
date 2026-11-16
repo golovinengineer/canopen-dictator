@@ -80,6 +80,7 @@ export global App {
     callback export-c();
     callback export-eds();
     callback export-docs();
+    callback export-od();
 
     callback filter-changed(string);
     callback select-object(int);
@@ -730,6 +731,13 @@ export component MainWindow inherits Window {
                 text: "C code";
                 clicked => {
                     App.export-c();
+                }
+            }
+
+            Button {
+                text: "OD";
+                clicked => {
+                    App.export-od();
                 }
             }
 

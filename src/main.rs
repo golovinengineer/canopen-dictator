@@ -17,8 +17,9 @@ Usage:
       Open the editor, optionally loading a .objdict.toml project, or
       importing a CANopenEditor .xdd or a CanFestival .od.
 
-  dictator export PROJECT [--c FILE.c] [--eds FILE.eds] [--md FILE.md]
-      Generate CanFestival C (+ .h next to it), EDS and Markdown docs.
+  dictator export PROJECT [--c FILE.c] [--od FILE.od] [--eds FILE.eds] [--md FILE.md]
+      Generate CanFestival C (+ .h next to it), a CanFestival .od project,
+      EDS and Markdown docs.
 
   dictator import FILE.xdd|FILE.od OUT.objdict.toml
       Convert a CANopenEditor XDD or a CanFestival .od into a project file.
@@ -30,7 +31,7 @@ fn export(args: &[String]) -> Result<()> {
     let mut it = args.iter();
     while let Some(arg) = it.next() {
         match arg.as_str() {
-            "--c" | "--eds" | "--md" => {
+            "--c" | "--od" | "--eds" | "--md" => {
                 let path = it.next().ok_or_else(|| anyhow!("{arg} needs a file path"))?;
                 outputs.push((arg.clone(), PathBuf::from(path)));
             }
@@ -41,13 +42,14 @@ fn export(args: &[String]) -> Result<()> {
     }
     let input = input.ok_or_else(|| anyhow!("export needs a project file"))?;
     if outputs.is_empty() {
-        bail!("export needs at least one of --c, --eds, --md");
+        bail!("export needs at least one of --c, --od, --eds, --md");
     }
     let od = open(&input)?;
     let project_name = input.file_name().and_then(|n| n.to_str()).unwrap_or_default();
     for (kind, path) in outputs {
         match kind.as_str() {
             "--c" => io::export_c(&od, &path)?,
+            "--od" => io::export_od(&od, &path)?,
             "--eds" => io::export_eds(&od, &path)?,
             _ => io::export_markdown(&od, &path, project_name)?,
         }

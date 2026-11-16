@@ -1,6 +1,6 @@
 [package]
 name = "dictator-canfestival"
-description = "CanFestival-compatible C code generator and .od importer (port of CanFestival objdictgen)"
+description = "CanFestival-compatible C code generator and .od import/export (port of CanFestival objdictgen)"
 license = "LGPL-2.1-or-later"
 version.workspace = true
 edition.workspace = true

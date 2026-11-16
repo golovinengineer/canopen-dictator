@@ -34,13 +34,20 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
 | XDD import (CANopenEditor 4.x flavour) | `crates/dictator-core/src/xdd.rs` | `crates/dictator-core/tests/project.rs` |
 | TOML project load/save | `crates/dictator-core/src/project.rs` | `crates/dictator-core/tests/project.rs` (lossless, stable, escaping, checked-in sample) |
 | EDS export, CANopenEditor layout | `crates/dictator-core/src/export/eds.rs` | `crates/dictator-core/tests/eds.rs`: equal to sample except the two `Modification*` lines |
-| CanFestival `.od` import | `crates/dictator-canfestival/src/od.rs` | `crates/dictator-canfestival/tests/od_import.rs`: C generated from the imported `ObjDict.od` is token-identical to the sample; project-file round trip is lossless |
+| CanFestival `.od` import | `crates/dictator-canfestival/src/od/` | `crates/dictator-canfestival/tests/od_import.rs`: C generated from the imported `ObjDict.od` is token-identical to the sample; project-file round trip is lossless |
+| CanFestival `.od` export | `crates/dictator-canfestival/src/od/` | `crates/dictator-canfestival/tests/od_export.rs`: the XDD sample exports an `.od` with the same content as `ObjDict.od` (made by the old chain); `.od` -> project -> `.od` keeps the original content; output is byte-stable. Checked by hand in the objdictedit container: the export opens with `NodeManager.OpenFileInCurrent`, and CanFestival's `gen_cfile` on it gives the same C as Dictator (apart from the deliberate differences listed below) |
 | CanFestival C/H export | `crates/dictator-canfestival/` | `crates/dictator-canfestival/tests/canfestival.rs`: token-identical to the sample (it is clang-formatted, so whitespace is ignored) |
 | Markdown docs export, CANopenEditor layout | `crates/dictator-core/src/export/markdown.rs` | `crates/dictator-core/tests/markdown.rs`: equal except tool/project/modified lines |
-| Command line `export` / `import` (`.xdd`, `.od`) | `src/main.rs`, `src/io.rs` | run by hand |
-| GUI: open/save, import XDD, filter, add/delete/renumber object, change kind, add/remove subindex, edit fields, device + generator settings, exports | `ui/main.slint`, `src/gui.rs` | layout checked from a `slint-viewer` screenshot; app start checked; **editing actions not yet exercised by hand or by tests** |
+| Command line `export` (`--c`, `--od`, `--eds`, `--md`) / `import` (`.xdd`, `.od`) | `src/main.rs`, `src/io.rs` | run by hand |
+| GUI: open/save, import XDD / `.od`, filter, add/delete/renumber object, change kind, add/remove subindex, edit fields, device + generator settings, exports | `ui/main.slint`, `src/gui.rs` | layout checked from a `slint-viewer` screenshot; app start checked; **editing actions not yet exercised by hand or by tests** |
 
 ### Backlog, grouped as candidate threads
+
+Crate layout the threads work towards: `dictator-core` keeps the model, the
+project file and the tool-neutral exports (EDS, Markdown); each tool gets a
+crate with its importer, exporter and C generator:
+`dictator-canfestival` (`.od`, CanFestival C: done) and
+`dictator-canopennode` (XDD, CANopenNode C: thread 5).
 
 1. **GUI hardening**
    - click through every action once; move the editing operations
@@ -61,19 +68,32 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
 4. **Object templates**
    - insert standard communication objects (heartbeat, SDO server, n-th
      RPDO/TPDO pair) with correct defaults; clone / renumber ranges
-5. **Importers / exporters**
-   - XDD export (so a project can go back to CANopenEditor)
+5. **CANopenNode crate** (`crates/dictator-canopennode`, MIT OR Apache-2.0)
+   - create the crate; move the XDD import out of `dictator-core` into it
+     (`io::open` and the tests follow)
+   - XDD export, so a project can go back to CANopenEditor; golden test:
+     XDD -> project -> XDD keeps the content of `legacy_objdict.xdd`
+     (compare parsed, CANopenEditor rewrites timestamps)
+   - CANopenNode v4 `OD.c` / `OD.h` generator, in the form CANopenEditor's
+     v4 exporter writes them; golden files: export them with CANopenEditor
+     (`~/tools/CANopenEditor-v4`) from `legacy_objdict.xdd`, check them in
+     under `assets/legacy_objdict/`
+   - wire up: `--canopennode FILE.c` (CLI), an export button (GUI)
+   - licence: CANopenNode is Apache-2.0, CANopenEditor / libEDSsharp is GPL:
+     write everything from the formats and from files CANopenEditor
+     produced, never by translating its C# (see Open items)
+6. **Importers / exporters (tool-neutral)**
    - EDS import, DCF export
    - EDS: LSS / boot-up flags, `CompactSubObj`, `ObjFlags`
-6. **C generator completeness** (all marked `TODO` in `crates/dictator-canfestival/`)
+7. **CanFestival C generator completeness** (all marked `TODO` in `crates/dictator-canfestival/`)
    - user value-range types (indexes 0x0001-0x0260) and `valueRangeTest` cases
    - per-entry string `buffer_size`, pointer variables, DOMAIN checks
    - device profiles (`config/*.prf`: DS-401, DS-402 ...) and DS-302
-   - 24/40/48/56-bit integers, TIME types
-7. **Project file**
+   - 24/40/48/56-bit integers, TIME types (also needed by `.od` import/export)
+8. **Project file**
    - keep user comments and unknown keys on save (`toml_edit`)
    - format versioning / migration when `format` changes
-8. **Packaging**: app icon, macOS bundle, Windows/Linux builds, CI
+9. **Packaging**: app icon, macOS bundle, Windows/Linux builds, CI
 
 ## Notes for whoever picks this up
 
@@ -115,10 +135,15 @@ Each object is joined from `CANopenObjectList` and `parameterList` via
 label only repeats the name and is ignored. `BITSTRING` is imported as
 OCTET_STRING because CANopenEditor writes DOMAIN the same way.
 
-### `.od` import
+### `.od` import and export
 
 An `.od` is CanFestival's `node.Node` saved with `gnosis.xml.pickle`
-(`od.rs` has a small reader for it, including `refid` back-references).
+(`od/pickle.rs` reads and writes the subset it uses, including `refid`
+back-references on reading). String values are not plain XML: gnosis writes
+`repr()` of the XML-escaped bytes (`safe_string`: `\n`, `\\`, `\xc2\xb0`, `'`
+as `&apos;`) and reads them back by `exec`ing a Python literal
+(`unsafe_string`), so a raw line break in an attribute makes objdictedit
+fail to open the file.
 Names, types and access come from the file's `Profile` / `DS302` /
 `UserMapping` tables, then from the DS-301 table, in that order, as in
 `node.py`. Things to know:
@@ -132,6 +157,27 @@ Names, types and access come from the file's `Profile` / `DS302` /
   the C generator;
 - objects that were disabled in the XDD never reached the `.od`, so an `.od`
   import of the sample has 12 fewer objects than the XDD import.
+
+Export builds the node the way objdictedit's EDS import does
+(`eds_utils.py: GenerateNode`): DS-301 table indexes get only a value; other
+objects get a user mapping (`struct` 1 for VAR, 3 for ARRAY and RECORD alike,
+so an ARRAY comes back as a RECORD), sub 0 `Number of Entries`,
+`Compatibility Entry` in holes; missing values take the table default,
+including the PDO COB-ID formula `{True:"$NODEID+0x%X80"%(base+1),...}`,
+which the importer evaluates. Not carried: limits, `rwr`/`rww`, TPDO vs RPDO,
+storage group, count label, device information other than name and
+description, disabled objects. The object-level comment of an ARRAY/RECORD
+is stored in `ParamsDictionary[index]["comment"]`, which objdictedit keeps
+but does not show. Ids in the written file are sequential, so the same
+project always gives the same bytes.
+
+The XDD golden test clears descriptions before comparing, because
+objdictedit's EDS import drops them.
+
+To check an export in real objdictedit, the `objdictgen_img` image (built
+from `assets/legacy_objdict/Dockerfile`, run with Apple's `container` as
+`co_stack_gen`) mounts the repository at `/workdir`; write test files under
+`target/` so nothing lands in `assets/`.
 
 ### Testing
 
@@ -151,7 +197,8 @@ components (grid placement), hence `item`.
 
 - **Licences** are settled (see Decisions and `README.md`). Keep in mind:
   code ported from CanFestival goes into `dictator-canfestival` only, with an
-  `LGPL-2.1-or-later` SPDX header; `dictator-core` must not depend on it. If
+  `LGPL-2.1-or-later` SPDX header; `dictator-core` and `dictator-canopennode`
+  must not depend on it. If
   the app ever targets an embedded device, the Slint royalty-free licence does
   not cover that.
   Importers and exporters for CANopenEditor formats (XDD, its EDS and

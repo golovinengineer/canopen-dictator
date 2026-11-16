@@ -1,32 +1,15 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 // Part of the Rust port of CanFestival objdictgen; see lib.rs for copyright.
 
-//! Import of CanFestival `.od` project files (what `objdictedit.py` saves).
-//!
-//! An `.od` file is CanFestival's `node.Node` object written with
-//! `gnosis.xml.pickle`. The parts used here:
-//!
-//! - `Dictionary`: index -> value of a VAR, or the list of values of subs
-//!   1..n of an ARRAY/RECORD (sub 0 is implicit, the list length);
-//! - `UserMapping`, `Profile`, `DS302`: definitions (name, structure, sub
-//!   names, types, access, PDO flag) of the indexes CanFestival's built-in
-//!   DS-301 table does not describe, searched in the order
-//!   Profile -> DS302 -> UserMapping, then the DS-301 table (`node.py:
-//!   GetEntryInfos / GetSubentryInfos`);
-//! - `ParamsDictionary`: per index `callback`, and per entry/sub `comment`,
-//!   `save`, `buffer_size`;
-//! - `Name`, `Type`, `Description`, `DefaultStringSize`.
-//!
-//! Like `objdictedit` (`nodemanager.py: OpenFileInCurrent`), the node id
-//! stored in the file is ignored and set to 0.
+//! `.od` -> project (`node.Node` -> [`ObjectDictionary`]).
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::path::Path;
 
 use anyhow::{Context, Result, anyhow, bail};
-use roxmltree::{Document, Node, ParsingOptions};
 
-use super::ds301::{self, OD_IDENTICAL_INDEXES, OD_IDENTICAL_SUBINDEXES, OD_MULTIPLE_SUBINDEXES};
+use super::pickle::{Py, parse_pickle};
+use crate::ds301::{self, OD_IDENTICAL_INDEXES, OD_IDENTICAL_SUBINDEXES, OD_MULTIPLE_SUBINDEXES};
 use dictator_core::model::*;
 
 /// The imported project plus what could not be carried over.
@@ -40,151 +23,6 @@ pub fn load(path: &Path) -> Result<Import> {
     let text =
         std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
     parse(&text).with_context(|| format!("parsing {}", path.display()))
-}
-
-// ------------------------------------------------------------ gnosis pickle
-
-/// A Python value as written by `gnosis.xml.pickle`.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Py {
-    None,
-    Bool(bool),
-    Int(i128),
-    /// Kept as written (`1.5`, `1e-05`).
-    Float(String),
-    Str(String),
-    List(Vec<Py>),
-    Dict(Vec<(Py, Py)>),
-    Object { class: String, attrs: Vec<(String, Py)> },
-}
-
-impl Py {
-    /// Dictionary lookup (dicts here are small; keys are ints or strings).
-    fn get(&self, key: &Py) -> Option<&Py> {
-        match self {
-            Py::Dict(items) => items.iter().find(|(k, _)| k == key).map(|(_, v)| v),
-            _ => None,
-        }
-    }
-
-    fn get_str(&self, key: &str) -> Option<&Py> {
-        self.get(&Py::Str(key.to_string()))
-    }
-
-    fn attr(&self, name: &str) -> Option<&Py> {
-        match self {
-            Py::Object { attrs, .. } => attrs.iter().find(|(n, _)| n == name).map(|(_, v)| v),
-            _ => None,
-        }
-    }
-
-    fn as_int(&self) -> Option<i128> {
-        match self {
-            Py::Int(i) => Some(*i),
-            Py::Bool(b) => Some(*b as i128),
-            _ => None,
-        }
-    }
-
-    fn as_str(&self) -> Option<&str> {
-        match self {
-            Py::Str(s) => Some(s),
-            _ => None,
-        }
-    }
-
-    /// Python truthiness, for flags stored as bools or ints.
-    fn truthy(&self) -> bool {
-        match self {
-            Py::None => false,
-            Py::Bool(b) => *b,
-            Py::Int(i) => *i != 0,
-            Py::Float(f) => f.parse::<f64>().is_ok_and(|f| f != 0.0),
-            Py::Str(s) => !s.is_empty(),
-            Py::List(l) => !l.is_empty(),
-            Py::Dict(d) => !d.is_empty(),
-            Py::Object { .. } => true,
-        }
-    }
-}
-
-struct Pickle<'a, 'input> {
-    /// Elements by `id`, for `refid` back-references to shared objects.
-    ids: HashMap<&'a str, Node<'a, 'input>>,
-}
-
-impl<'a, 'input> Pickle<'a, 'input> {
-    fn value(&self, n: Node<'a, 'input>, depth: u32) -> Result<Py> {
-        if depth > 64 {
-            bail!("pickle nested too deeply (reference cycle?)");
-        }
-        if let Some(r) = n.attribute("refid") {
-            let target = *self.ids.get(r).ok_or_else(|| anyhow!("dangling refid {r}"))?;
-            return self.value(target, depth + 1);
-        }
-        let ty = n
-            .attribute("type")
-            .or_else(|| (n.tag_name().name() == "PyObject").then_some("PyObject"))
-            .ok_or_else(|| anyhow!("<{}> without a type", n.tag_name().name()))?;
-        let raw = n.attribute("value").unwrap_or("");
-        let kids = |tag: &'static str| n.children().filter(move |c| c.tag_name().name() == tag);
-        Ok(match ty {
-            "None" => Py::None,
-            "True" => Py::Bool(true),
-            "False" => Py::Bool(false),
-            "numeric" => {
-                let t = raw.trim().trim_end_matches(['L', 'l']);
-                match t.parse::<i128>() {
-                    Ok(i) => Py::Int(i),
-                    Err(_) if t.parse::<f64>().is_ok() => Py::Float(t.to_string()),
-                    Err(_) => bail!("unsupported number {raw:?}"),
-                }
-            }
-            "string" | "unicode" => Py::Str(raw.to_string()),
-            "list" | "tuple" => Py::List(
-                kids("item")
-                    .map(|c| self.value(c, depth + 1))
-                    .collect::<Result<_>>()?,
-            ),
-            "dict" => {
-                let mut items = Vec::new();
-                for e in kids("entry") {
-                    let part = |tag: &str| {
-                        e.children()
-                            .find(|c| c.tag_name().name() == tag)
-                            .ok_or_else(|| anyhow!("dict entry without <{tag}>"))
-                    };
-                    items.push((self.value(part("key")?, depth + 1)?, self.value(part("val")?, depth + 1)?));
-                }
-                Py::Dict(items)
-            }
-            "PyObject" => Py::Object {
-                class: n.attribute("class").unwrap_or("").to_string(),
-                attrs: kids("attr")
-                    .map(|c| {
-                        let name = c.attribute("name").unwrap_or("").to_string();
-                        Ok((name, self.value(c, depth + 1)?))
-                    })
-                    .collect::<Result<_>>()?,
-            },
-            other => bail!("unsupported pickled type {other:?}"),
-        })
-    }
-}
-
-/// Parse a `gnosis.xml.pickle` document into its root object.
-pub fn parse_pickle(text: &str) -> Result<Py> {
-    let opts = ParsingOptions { allow_dtd: true, ..ParsingOptions::default() };
-    let doc = Document::parse_with_options(text, opts)?;
-    let root = doc.root_element();
-    if root.tag_name().name() != "PyObject" {
-        bail!("not a CanFestival .od file (root element <{}>)", root.tag_name().name());
-    }
-    let ids = doc
-        .descendants()
-        .filter_map(|n| n.attribute("id").map(|id| (id, n)))
-        .collect();
-    Pickle { ids }.value(root, 0)
 }
 
 // --------------------------------------------------------- mapping tables
@@ -378,6 +216,25 @@ fn format_value(v: &Py, t: DataType, ctx: &str) -> Result<String> {
     })
 }
 
+/// Evaluate the PDO COB-ID default of CanFestival's DS-301 table, stored as
+/// Python source: `{True:"$NODEID+0x%X00"%(base+2),False:0x80000000}[base<4]`.
+pub(crate) fn eval_base_formula(s: &str, base: u32) -> Option<String> {
+    let between = |from: &str, to: &str| -> Option<&str> {
+        let start = s.find(from)? + from.len();
+        let len = s[start..].find(to)?;
+        Some(&s[start..start + len])
+    };
+    let fmt = between("{True:\"", "\"%(base+")?;
+    let k: u32 = between("%(base+", "),False:")?.trim().parse().ok()?;
+    let otherwise = between("False:", "}[base<")?.trim();
+    let limit: u32 = between("}[base<", "]")?.trim().parse().ok()?;
+    Some(if base < limit {
+        fmt.replacen("%X", &format!("{:X}", base + k), 1)
+    } else {
+        otherwise.to_string()
+    })
+}
+
 // ---------------------------------------------------------------- import
 
 /// Sub-entry as resolved for one index: name, type, access, PDO flag.
@@ -512,7 +369,13 @@ fn from_node(node: &Py) -> Result<Import> {
             let sctx = format!("{ctx} sub 0x{sub:02X}");
             let mut s = SubObject::new(sub, &d.name, d.data_type, d.access);
             s.pdo = if d.pdo { PdoMapping::Optional } else { PdoMapping::No };
-            s.default = format_value(v, d.data_type, &sctx)?;
+            s.default = match (v, table) {
+                (Py::Str(f), Some(t)) if f.contains("[base<") => {
+                    eval_base_formula(f, (index - t.index) as u32)
+                        .ok_or_else(|| anyhow!("{sctx}: cannot evaluate default {f:?}"))?
+                }
+                _ => format_value(v, d.data_type, &sctx)?,
+            };
             Ok(s)
         };
 
@@ -538,6 +401,8 @@ fn from_node(node: &Py) -> Result<Import> {
                     s.description = comment(p);
                     check_buffer_size(p, &format!("{ctx} sub 0x{:02X}", s.sub));
                 }
+                // objdictedit has no field for it; Dictator's export puts it here.
+                obj.description = comment(index_params);
                 obj
             }
             v if !is_list && !matches!(v, Py::List(_)) => {
@@ -581,26 +446,11 @@ mod tests {
     }
 
     #[test]
-    fn pickle_values_and_back_references() {
-        let py = parse_pickle(&doc(r#"
-<attr name="L" type="list" id="2">
-  <item type="numeric" value="4294967296L" />
-  <item type="numeric" value="1.5" />
-  <item type="True" value="" />
-  <item type="None" />
-  <item type="string" value="a &quot;b&quot;" />
-</attr>
-<attr name="R" type="list" refid="2" />"#))
-        .unwrap();
-        let expected = Py::List(vec![
-            Py::Int(4294967296),
-            Py::Float("1.5".into()),
-            Py::Bool(true),
-            Py::None,
-            Py::Str("a \"b\"".into()),
-        ]);
-        assert_eq!(py.attr("L"), Some(&expected));
-        assert_eq!(py.attr("R"), Some(&expected));
+    fn pdo_cob_id_formula() {
+        let rx = "{True:\"$NODEID+0x%X00\"%(base+2),False:0x80000000}[base<4]";
+        assert_eq!(eval_base_formula(rx, 0).as_deref(), Some("$NODEID+0x200"));
+        assert_eq!(eval_base_formula(rx, 3).as_deref(), Some("$NODEID+0x500"));
+        assert_eq!(eval_base_formula(rx, 4).as_deref(), Some("0x80000000"));
     }
 
     #[test]
