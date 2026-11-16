@@ -15,8 +15,8 @@ fn stable(text: &str) -> Vec<&str> {
 #[test]
 fn eds_matches_canopeneditor_export() {
     let od = common::sample_xdd();
-    let ours = eds::generate(&od, "ObjDict.eds");
-    let theirs = common::read_asset("ObjDict.eds");
+    let ours = eds::generate(&od, "example.eds");
+    let theirs = common::read_asset("example.eds");
     let (a, b) = (stable(&ours), stable(&theirs));
     for (n, (x, y)) in a.iter().zip(b.iter()).enumerate() {
         assert_eq!(x, y, "first difference at filtered line {}", n + 1);

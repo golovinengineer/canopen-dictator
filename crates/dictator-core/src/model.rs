@@ -232,13 +232,16 @@ pub struct SubObject {
     pub data_type: DataType,
     pub access: Access,
     pub pdo: PdoMapping,
-    /// Kept as written (`0x22000508`, `$NODEID+0x180`, `Example`); empty = unset.
+    /// Kept as written (`0x22000508`, `$NODEID+0x180`, `Example Device`); empty = unset.
     pub default: String,
     pub min: String,
     pub max: String,
     pub description: String,
     /// CanFestival `TO_BE_SAVE` flag.
     pub save: bool,
+    /// CANopenNode `CO_stringLengthMin`: room reserved for a string, in
+    /// characters; 0 = the length of the default.
+    pub string_length_min: u32,
 }
 
 impl SubObject {
@@ -254,6 +257,7 @@ impl SubObject {
             max: String::new(),
             description: String::new(),
             save: false,
+            string_length_min: 0,
         }
     }
 }
@@ -271,6 +275,9 @@ pub struct Object {
     pub storage_group: String,
     /// CANopenNode count label (informational; shown in docs).
     pub count_label: String,
+    /// CANopenNode `CO_flagsPDO`: a change of a mapped value triggers the
+    /// TPDO (EDS `;TPDODetectCos=1`).
+    pub flags_pdo: bool,
     pub subs: Vec<SubObject>,
 }
 
@@ -293,6 +300,7 @@ impl Object {
             description: String::new(),
             storage_group: String::new(),
             count_label: String::new(),
+            flags_pdo: false,
             subs,
         }
     }
@@ -324,6 +332,11 @@ pub struct DeviceInfo {
     pub granularity: u8,
     pub rpdo_count: u16,
     pub tpdo_count: u16,
+    pub lss_slave: bool,
+    pub lss_master: bool,
+    /// Data type indexes (1..=7) that may be mapped as PDO dummy entries
+    /// (EDS `[DummyUsage]`).
+    pub dummy_usage: Vec<u16>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

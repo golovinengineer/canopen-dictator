@@ -4,7 +4,7 @@
 //! "documentation" export so existing documents keep their shape.
 //!
 // TODO: SRDO column is always "no" (no SRDO support in the model).
-// TODO: LSS / node-guarding flags are always False.
+// TODO: node-guarding flags are always False.
 
 use std::fmt::Write as _;
 
@@ -45,6 +45,20 @@ fn pdo(p: PdoMapping) -> &'static str {
     }
 }
 
+/// .NET's `bool.ToString()`.
+fn py_bool(b: bool) -> String {
+    (if b { "True" } else { "False" }).to_string()
+}
+
+/// String length suffix CANopenEditor adds to the type: ` (len=16)`.
+fn len_suffix(s: &SubObject) -> String {
+    if s.string_length_min != 0 {
+        format!("(len={})", s.string_length_min)
+    } else {
+        String::new()
+    }
+}
+
 fn kv_table(o: &mut String, rows: &[(&str, String)]) {
     let _ = writeln!(o, "| {:<12} | {:<30} |", "", "");
     let _ = writeln!(o, "| {} | {} |", "-".repeat(12), "-".repeat(30));
@@ -55,6 +69,10 @@ fn kv_table(o: &mut String, rows: &[(&str, String)]) {
 
 /// Name shown for a mapped variable: `Object (Sub)`.
 fn mapped_name(od: &ObjectDictionary, index: u16, sub: u8) -> String {
+    // Dummy entries map a data type index (0x0001..0x0007).
+    if index < 0x1000 {
+        return DataType::from_cia_index(index).map(|t| t.cia_name().to_string()).unwrap_or_default();
+    }
     match od.objects.get(&index) {
         Some(obj) if obj.kind == ObjectKind::Var => obj.name.clone(),
         Some(obj) => match obj.sub(sub) {
@@ -88,7 +106,7 @@ fn pdo_section(o: &mut String, od: &ObjectDictionary) {
                     value(comm, 5)
                 )
             } else {
-                format!("type={}; event-timer={}", value(comm, 2), value(comm, 5))
+                format!("type={}", value(comm, 2))
             };
             let _ = writeln!(o, "| {:<12} | {transmission:<61} |", "Transmission");
             for sub in 1..=count.min(255) as u8 {
@@ -119,10 +137,14 @@ fn object_section(o: &mut String, index: u16, obj: &Object) {
         let _ = writeln!(o, "| Data Type               | SDO | PDO | SRDO | Default Value                   |");
         let _ = writeln!(o, "| ----------------------- | --- | --- | ---- | ------------------------------- |");
         if let Some(s) = obj.subs.first() {
+            let mut ty = s.data_type.cia_name().to_string();
+            if s.string_length_min != 0 {
+                ty = format!("{ty} {}", len_suffix(s));
+            }
             let _ = writeln!(
                 o,
                 "| {:<23} | {:<3} | {:<3} | {:<4} | {:<31} |",
-                s.data_type.cia_name(),
+                ty,
                 sdo(s.access),
                 pdo(s.pdo),
                 "no",
@@ -135,10 +157,11 @@ fn object_section(o: &mut String, index: u16, obj: &Object) {
         for s in &obj.subs {
             let _ = writeln!(
                 o,
-                "| 0x{:02X} | {:<22}| {:<10} | {:<3} | {:<3} | {:<4} | {:<14}|",
+                "| 0x{:02X} | {:<22}| {:<10} {}| {:<3} | {:<3} | {:<4} | {:<14}|",
                 s.sub,
                 s.name,
                 s.data_type.cia_name(),
+                len_suffix(s),
                 sdo(s.access),
                 pdo(s.pdo),
                 "no",
@@ -194,8 +217,8 @@ pub fn generate(od: &ObjectDictionary, project_file: &str) -> String {
             ("Granularity", d.granularity.to_string()),
             ("RPDO count", d.rpdo_count.to_string()),
             ("TPDO count", d.tpdo_count.to_string()),
-            ("LSS Slave", "False".into()),
-            ("LSS Master", "False".into()),
+            ("LSS Slave", py_bool(d.lss_slave)),
+            ("LSS Master", py_bool(d.lss_master)),
             ("NG Slave", "False".into()),
             ("NG Master", "False".into()),
         ],

@@ -25,7 +25,7 @@ fn normalize(v: &Py) -> Py {
 }
 
 fn reference() -> Py {
-    normalize(&od::parse_pickle(&common::read_asset("ObjDict.od")).unwrap())
+    normalize(&od::parse_pickle(&common::read_asset("example.od")).unwrap())
 }
 
 /// Report the first differing attribute / dictionary key, not a 7000-line dump.
@@ -55,22 +55,20 @@ fn assert_same_node(ours: &Py, theirs: &Py) {
 /// `.od` -> project -> `.od` keeps everything CanFestival stored.
 #[test]
 fn od_round_trip_matches_the_original_file() {
-    let imported = od::load(&common::asset("ObjDict.od")).unwrap().od;
+    let imported = od::load(&common::asset("example.od")).unwrap().od;
     let text = od::generate(&imported).unwrap();
     assert_same_node(&normalize(&od::parse_pickle(&text).unwrap()), &reference());
 }
 
-/// XDD -> project -> `.od` gives what the old chain (XDD -> EDS ->
-/// objdictedit import -> save) stored in `ObjDict.od`.
+/// project -> `.od` gives what the old chain (XDD -> EDS -> objdictedit
+/// import -> CanFestival settings -> save) stored in `example.od`.
 #[test]
-fn xdd_project_exports_the_reference_od() {
-    let mut project = common::sample_xdd();
-    // Callbacks were enabled by hand in objdictedit (see tests/canfestival.rs).
+fn project_exports_the_reference_od() {
+    let mut project = common::canfestival_project();
     // objdictedit's EDS import takes neither the device description nor
     // per-object descriptions over.
     project.device.description.clear();
-    for (i, o) in project.objects.iter_mut() {
-        o.callback = *i >= 0x2000;
+    for o in project.objects.values_mut() {
         o.description.clear();
         o.subs.iter_mut().for_each(|s| s.description.clear());
     }
@@ -81,7 +79,7 @@ fn xdd_project_exports_the_reference_od() {
 /// Same project, same bytes; and the export reads back as the same project.
 #[test]
 fn export_is_stable_and_reimports() {
-    let imported = od::load(&common::asset("ObjDict.od")).unwrap().od;
+    let imported = od::load(&common::asset("example.od")).unwrap().od;
     let text = od::generate(&imported).unwrap();
     assert_eq!(text, od::generate(&imported).unwrap());
     let again = od::parse(&text).unwrap();

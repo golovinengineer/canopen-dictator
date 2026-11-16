@@ -17,15 +17,15 @@
 //! access = "ro"
 //! default = "0x00000000"
 //!
-//! [object.0x2200]            # ARRAY / RECORD: one inline table per subindex
-//! name = "Status General"
+//! [object.0x2101]            # ARRAY / RECORD: one inline table per subindex
+//! name = "Demo record"
 //! kind = "record"
 //! sub = [
-//!   { sub = 0x00, name = "Highest sub-index supported", type = "u8", access = "ro", default = "0x08" },
-//!   { sub = 0x01, name = "Status", type = "u8", access = "rw", pdo = "tpdo", default = "0" },
+//!   { sub = 0x00, name = "Highest sub-index supported", type = "u8", access = "ro", default = "0x06" },
+//!   { sub = 0x01, name = "Status", type = "u8", access = "ro", pdo = "tpdo", default = "0x00" },
 //! ]
 //!
-//! [object.0x2200.doc]        # per-subindex descriptions, only when present
+//! [object.0x2101.doc]        # per-subindex descriptions, only when present
 //! 0x01 = "Device status"
 //! ```
 //!
@@ -123,6 +123,9 @@ fn sub_fields(s: &SubObject, with_sub: bool, with_name: bool) -> Vec<(&'static s
     if s.save {
         f.push(("save", "true".into()));
     }
+    if s.string_length_min != 0 {
+        f.push(("string_length_min", s.string_length_min.to_string()));
+    }
     f
 }
 
@@ -144,6 +147,16 @@ pub fn to_toml(od: &ObjectDictionary) -> String {
     let _ = writeln!(o, "granularity = {}", d.granularity);
     let _ = writeln!(o, "rpdo_count = {}", d.rpdo_count);
     let _ = writeln!(o, "tpdo_count = {}", d.tpdo_count);
+    if d.lss_slave {
+        let _ = writeln!(o, "lss_slave = true");
+    }
+    if d.lss_master {
+        let _ = writeln!(o, "lss_master = true");
+    }
+    if !d.dummy_usage.is_empty() {
+        let dummies: Vec<String> = d.dummy_usage.iter().map(|t| t.to_string()).collect();
+        let _ = writeln!(o, "dummy_usage = [{}]", dummies.join(", "));
+    }
 
     let c = &od.canfestival;
     let _ = writeln!(o, "\n[canfestival]");
@@ -167,6 +180,9 @@ pub fn to_toml(od: &ObjectDictionary) -> String {
         }
         if !obj.count_label.is_empty() {
             let _ = writeln!(o, "count_label = {}", quote(&obj.count_label));
+        }
+        if obj.flags_pdo {
+            let _ = writeln!(o, "flags_pdo = true");
         }
         if !obj.description.is_empty() {
             let _ = writeln!(o, "description = {}", quote_text(&obj.description));
@@ -253,6 +269,7 @@ fn read_sub(t: &Table, sub: u8, name: String, ctx: &str) -> Result<SubObject> {
         max: get_value(t, "max"),
         description: String::new(),
         save: get_bool(t, "save"),
+        string_length_min: get_int(t, "string_length_min").unwrap_or(0).max(0) as u32,
     })
 }
 
@@ -289,6 +306,13 @@ pub fn from_toml(text: &str) -> Result<ObjectDictionary> {
         granularity: get_int(d, "granularity").unwrap_or(8) as u8,
         rpdo_count: get_int(d, "rpdo_count").unwrap_or(0) as u16,
         tpdo_count: get_int(d, "tpdo_count").unwrap_or(0) as u16,
+        lss_slave: get_bool(d, "lss_slave"),
+        lss_master: get_bool(d, "lss_master"),
+        dummy_usage: d
+            .get("dummy_usage")
+            .and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(|v| v.as_integer()).map(|v| v as u16).collect())
+            .unwrap_or_default(),
     };
 
     let c = root
@@ -325,6 +349,7 @@ pub fn from_toml(text: &str) -> Result<ObjectDictionary> {
             description: get_str(t, "description"),
             storage_group: get_str(t, "storage_group"),
             count_label: get_str(t, "count_label"),
+            flags_pdo: get_bool(t, "flags_pdo"),
             subs: Vec::new(),
         };
         if kind == ObjectKind::Var {

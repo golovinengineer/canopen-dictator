@@ -50,8 +50,8 @@ fn xdd_type(tag: &str) -> Option<DataType> {
         "LREAL" => DataType::Real64,
         "STRING" => DataType::VisibleString,
         "WSTRING" => DataType::UnicodeString,
-        // TODO: CANopenEditor writes both OCTET_STRING and DOMAIN as BITSTRING;
-        // they cannot be told apart here.
+        // CANopenEditor writes OCTET_STRING and DOMAIN alike as BITSTRING;
+        // `parse_param` tells them apart by the default, as it does.
         "BITSTRING" => DataType::OctetString,
         _ => return None,
     })
@@ -127,6 +127,11 @@ fn parse_param(n: Node) -> Param {
             }
         }
     }
+    // libEDSsharp: BITSTRING with a default is an OCTET_STRING (hex bytes),
+    // without one a DOMAIN.
+    if p.data_type == Some(DataType::OctetString) && p.default.is_empty() {
+        p.data_type = Some(DataType::Domain);
+    }
     p
 }
 
@@ -174,6 +179,19 @@ pub fn parse(xml: &str) -> Result<ObjectDictionary> {
         od.device.granularity = num("granularity").unwrap_or(8) as u8;
         od.device.rpdo_count = num("nrOfRxPDO").unwrap_or(0);
         od.device.tpdo_count = num("nrOfTxPDO").unwrap_or(0);
+        od.device.lss_slave = f.attribute("layerSettingServiceSlave") == Some("true");
+    }
+    if let Some(f) = find(&doc, "CANopenMasterFeatures") {
+        od.device.lss_master = f.attribute("layerSettingServiceMaster") == Some("true");
+    }
+    // <dummy entry="Dummy0005=1" />
+    for d in doc.descendants().filter(|n| n.tag_name().name() == "dummy") {
+        if let Some((name, on)) = d.attribute("entry").and_then(|e| e.split_once('='))
+            && on.trim() == "1"
+            && let Some(t) = name.trim().strip_prefix("Dummy").and_then(|t| t.parse().ok())
+        {
+            od.device.dummy_usage.push(t);
+        }
     }
 
     // --- parameters by unique id -----------------------------------------
@@ -236,6 +254,11 @@ pub fn parse(xml: &str) -> Result<ObjectDictionary> {
                 max: p.max.clone(),
                 description: String::new(),
                 save: false,
+                string_length_min: p
+                    .props
+                    .get("CO_stringLengthMin")
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(0),
             }
         };
 
@@ -247,6 +270,7 @@ pub fn parse(xml: &str) -> Result<ObjectDictionary> {
             description: op.description.clone(),
             storage_group: op.props.get("CO_storageGroup").cloned().unwrap_or_default(),
             count_label: op.props.get("CO_countLabel").cloned().unwrap_or_default(),
+            flags_pdo: op.props.get("CO_flagsPDO").is_some_and(|v| v == "true"),
             subs: Vec::new(),
         };
 

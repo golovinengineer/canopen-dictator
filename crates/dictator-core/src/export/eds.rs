@@ -5,7 +5,7 @@
 //!
 // TODO: EDS import.
 // TODO: DCF export (ParameterValue, node id, baud rate).
-// TODO: CompactSubObj, ObjFlags, LSS / boot-up flags (written as 0 for now).
+// TODO: CompactSubObj, ObjFlags, boot-up flags (written as 0 for now).
 
 use std::fmt::Write as _;
 
@@ -51,7 +51,13 @@ fn write_value(o: &mut String, s: &SubObject) {
     if !s.min.is_empty() {
         let _ = writeln!(o, "LowLimit={}", s.min);
     }
-    let _ = writeln!(o, "DefaultValue={}", s.default);
+    if s.data_type == DataType::OctetString {
+        // CANopenEditor writes the hex bytes without separators.
+        let packed: String = s.default.split_whitespace().collect();
+        let _ = writeln!(o, "DefaultValue={packed}");
+    } else {
+        let _ = writeln!(o, "DefaultValue={}", s.default);
+    }
     let _ = writeln!(o, "PDOMapping={}", (s.pdo != PdoMapping::No) as u8);
 }
 
@@ -68,6 +74,10 @@ fn write_object(o: &mut String, index: u16, obj: &Object) {
     if obj.kind == ObjectKind::Var {
         if let Some(s) = obj.subs.first() {
             write_value(o, s);
+        }
+        // Written for a VAR only, as CANopenEditor does.
+        if obj.flags_pdo {
+            let _ = writeln!(o, ";TPDODetectCos=1");
         }
         o.push('\n');
         return;
@@ -134,12 +144,12 @@ pub fn generate(od: &ObjectDictionary, file_name: &str) -> String {
     let _ = writeln!(o, "GroupMessaging=0");
     let _ = writeln!(o, "NrOfRXPDO={}", d.rpdo_count);
     let _ = writeln!(o, "NrOfTXPDO={}", d.tpdo_count);
-    let _ = writeln!(o, "LSS_Supported=0");
+    let _ = writeln!(o, "LSS_Supported={}", d.lss_slave as u8);
     let _ = writeln!(o, "NG_Slave=0");
 
     let _ = writeln!(o, "\n[DummyUsage]");
     for i in 1..=7 {
-        let _ = writeln!(o, "Dummy{i:04}=0");
+        let _ = writeln!(o, "Dummy{i:04}={}", d.dummy_usage.contains(&i) as u8);
     }
     let _ = writeln!(o, "\n[Comments]\nLines=0\n");
 
