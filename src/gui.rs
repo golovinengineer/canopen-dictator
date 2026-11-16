@@ -775,6 +775,8 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
         let project = g.app().get_file_label().to_string();
         g.export("documentation", &format!("{stem}.md"), "md", |od, path| io::export_markdown(od, path, &project))
     });
+    // Hiding the only window ends `run()`.
+    on!(on_quit, |g| if g.confirm_discard() { g.ui.hide().map_err(Into::into) } else { Ok(()) });
     on!(on_filter_changed, |g, text| {
         g.state.borrow_mut().filter = text.to_string();
         g.refresh_objects();

@@ -89,6 +89,7 @@ export global App {
     callback export-eds();
     callback export-docs();
     callback export-od();
+    callback quit();
 
     callback filter-changed(string);
     callback select-object(int);
@@ -790,12 +791,33 @@ export component MainWindow inherits Window {
                     }
                 }
             }
+
+            MenuSeparator { }
+
+            // On macOS this moves to the application menu, replacing its Quit.
+            MenuItem {
+                title: Platform.os == OperatingSystemType.macos ? "Quit Dictator" : "Quit";
+                role: MenuItemRole.quit;
+                shortcut: @keys(Control + Q);
+                activated => {
+                    App.quit();
+                }
+            }
+
+            // macOS titles the default Hide item after the executable,
+            // lowercase; this only replaces the title, Hide still works.
+            if Platform.os == OperatingSystemType.macos: MenuItem {
+                title: "Hide Dictator";
+                role: MenuItemRole.hide;
+            }
         }
 
         Menu {
             title: "Help";
+            // On macOS this moves to the application menu.
             MenuItem {
                 title: "About Dictator";
+                role: MenuItemRole.about;
                 activated => {
                     about.show();
                 }
