@@ -708,6 +708,7 @@ export component MainWindow inherits Window {
             title: "File";
             MenuItem {
                 title: "New";
+                shortcut: @keys(Control + N);
                 activated => {
                     App.new-project();
                 }
@@ -715,6 +716,7 @@ export component MainWindow inherits Window {
 
             MenuItem {
                 title: "Open…";
+                shortcut: @keys(Control + O);
                 activated => {
                     App.open-project();
                 }
@@ -724,6 +726,7 @@ export component MainWindow inherits Window {
 
             MenuItem {
                 title: "Save";
+                shortcut: @keys(Control + S);
                 activated => {
                     App.save-project();
                 }
@@ -731,6 +734,7 @@ export component MainWindow inherits Window {
 
             MenuItem {
                 title: "Save As…";
+                shortcut: @keys(Control + Shift + S);
                 activated => {
                     App.save-project-as();
                 }
@@ -742,6 +746,7 @@ export component MainWindow inherits Window {
                 title: "Export";
                 MenuItem {
                     title: "CanFestival C code…";
+                    shortcut: @keys(Control + Shift + C);
                     activated => {
                         App.export-c();
                     }
@@ -749,6 +754,7 @@ export component MainWindow inherits Window {
 
                 MenuItem {
                     title: "CanFestival OD…";
+                    shortcut: @keys(Control + Shift + O);
                     activated => {
                         App.export-od();
                     }
@@ -756,6 +762,7 @@ export component MainWindow inherits Window {
 
                 MenuItem {
                     title: "EDS…";
+                    shortcut: @keys(Control + Shift + E);
                     activated => {
                         App.export-eds();
                     }
@@ -763,6 +770,7 @@ export component MainWindow inherits Window {
 
                 MenuItem {
                     title: "Documentation…";
+                    shortcut: @keys(Control + Shift + D);
                     activated => {
                         App.export-docs();
                     }

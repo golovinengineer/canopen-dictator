@@ -4,7 +4,6 @@
 //! applies the edits the UI reports back.
 //!
 // TODO: undo/redo.
-// TODO: keyboard shortcuts and a menu bar.
 // TODO: validation panel (duplicate names, PDO mapping consistency, limits).
 // TODO: PDO mapping editor, standard-object templates.
 
