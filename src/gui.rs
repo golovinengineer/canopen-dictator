@@ -19,6 +19,7 @@ use dictator_core::model::*;
 use dictator_core::project;
 
 use crate::io;
+use crate::settings::Settings;
 
 slint::include_modules!();
 
@@ -49,6 +50,7 @@ struct Gui {
     state: RefCell<State>,
     objects: Rc<VecModel<ObjectRow>>,
     subs: Rc<VecModel<SubRow>>,
+    settings: RefCell<Settings>,
 }
 
 fn names<T>(items: impl IntoIterator<Item = T>, f: impl Fn(T) -> &'static str) -> ModelRc<SharedString> {
@@ -188,6 +190,52 @@ fn change_kind(obj: &mut Object, kind: ObjectKind) {
 impl Gui {
     fn app(&self) -> App<'_> {
         self.ui.global::<App>()
+    }
+
+    /// Bring back the window size and pane widths of the last run. The UI
+    /// clamps the pane widths to their limits, so no checks are needed here.
+    fn restore_layout(&self) {
+        let s = self.settings.borrow();
+        let app = self.app();
+        if let Some(w) = s.number("panes", "list-width") {
+            app.set_wanted_list_width(w);
+        }
+        if let Some(w) = s.number("panes", "inspector-width") {
+            app.set_wanted_inspector_width(w);
+        }
+        let window = self.ui.window();
+        if let (Some(w), Some(h)) = (s.number("window", "width"), s.number("window", "height"))
+            && w > 0.0
+            && h > 0.0
+        {
+            // The window's minimum size still applies.
+            window.set_size(slint::LogicalSize::new(w, h));
+        }
+        if s.flag("window", "maximized") == Some(true) {
+            window.set_maximized(true);
+        }
+    }
+
+    /// Remember the window size and pane widths for the next run. Called
+    /// while the window is still shown, as it is about to close.
+    fn save_layout(&self) {
+        let mut s = self.settings.borrow_mut();
+        let app = self.app();
+        s.set_number("panes", "list-width", app.get_wanted_list_width());
+        s.set_number("panes", "inspector-width", app.get_wanted_inspector_width());
+        let window = self.ui.window();
+        let maximized = window.is_maximized();
+        // A maximized or full-screen window is the size of the screen; keep
+        // the size it goes back to instead.
+        if !maximized && !window.is_fullscreen() {
+            let size = window.size().to_logical(window.scale_factor());
+            s.set_number("window", "width", size.width);
+            s.set_number("window", "height", size.height);
+        }
+        s.set_flag("window", "maximized", maximized);
+        if let Err(e) = s.save() {
+            eprintln!("dictator: settings not saved: {e:#}");
+        }
     }
 
     fn status(&self, text: impl Into<SharedString>) {
@@ -769,7 +817,9 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
         state: RefCell::new(State::default()),
         objects: Rc::new(VecModel::default()),
         subs: Rc::new(VecModel::default()),
+        settings: RefCell::new(Settings::load()),
     });
+    gui.restore_layout();
     let app = gui.app();
     app.set_objects(gui.objects.clone().into());
     app.set_subs(gui.subs.clone().into());
@@ -820,7 +870,14 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
         g.export("documentation", &format!("{stem}.md"), "md", |od, path| io::export_markdown(od, path, &project))
     });
     // Hiding the only window ends `run()`.
-    on!(on_quit, |g| if g.settle_unsaved() { g.ui.hide().map_err(Into::into) } else { Ok(()) });
+    on!(on_quit, |g| {
+        if g.settle_unsaved() {
+            g.save_layout();
+            g.ui.hide().map_err(Into::into)
+        } else {
+            Ok(())
+        }
+    });
     on!(on_filter_changed, |g, text| {
         g.state.borrow_mut().filter = text.to_string();
         g.refresh_objects();
@@ -863,7 +920,11 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
     let weak = Rc::downgrade(&gui);
     gui.ui.window().on_close_requested(move || match weak.upgrade() {
         Some(g) if !g.settle_unsaved() => slint::CloseRequestResponse::KeepWindowShown,
-        _ => slint::CloseRequestResponse::HideWindow,
+        Some(g) => {
+            g.save_layout();
+            slint::CloseRequestResponse::HideWindow
+        }
+        None => slint::CloseRequestResponse::HideWindow,
     });
 
     gui.ui.run()?;

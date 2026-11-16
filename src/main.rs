@@ -8,6 +8,7 @@ use dictator_core::project;
 
 mod gui;
 mod io;
+mod settings;
 
 const USAGE: &str = "\
 dictator - CANopen object dictionary editor

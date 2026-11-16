@@ -81,6 +81,11 @@ export global App {
     in property <[FormField]> canfestival-fields;
     in property <string> version;
 
+    // Widths the side panes of the Object dictionary tab ask for, set by
+    // dragging the splitters; Rust keeps them between runs.
+    in-out property <length> wanted-list-width: 340px;
+    in-out property <length> wanted-inspector-width: 352px;
+
     callback new-project();
     callback open-project();
     callback save-project();
@@ -176,6 +181,26 @@ component ActionButton inherits Button {
 
 component Separator inherits Rectangle {
     background: Palette.border;
+}
+
+// A vertical divider that can be dragged sideways. Reports how far the
+// pointer moved since the last report; the owner moves the divider by
+// resizing a neighbouring pane, which keeps the pointer over it.
+component Splitter inherits Rectangle {
+    callback dragged(length);
+    width: 5px;
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        width: touch.pressed || touch.has-hover ? 3px : 1px;
+        background: touch.pressed || touch.has-hover ? Palette.accent-background : Palette.border;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: col-resize;
+        moved => {
+            root.dragged(self.mouse-x - self.pressed-x);
+        }
+    }
 }
 
 // Required by the Slint royalty-free licence: AboutSlint reachable from the
@@ -428,6 +453,9 @@ component ObjectList inherits VerticalLayout {
                 Field {
                     label: "Kind";
                     new-kind := ComboBox {
+                        // "record" needs far less than Fluent's 160px minimum,
+                        // and this way the form is no wider than the buttons.
+                        min-width: 100px;
                         model: App.kind-names;
                         current-index: 0;
                     }
@@ -508,6 +536,7 @@ component ObjectPane inherits VerticalLayout {
                 label: "Name";
                 horizontal-stretch: 1;
                 LineEdit {
+                    min-width: 120px;
                     text <=> App.obj-name;
                     edited(text) => {
                         App.object-edited("name", text);
@@ -644,9 +673,12 @@ component SubInspector inherits VerticalLayout {
 
     HorizontalLayout {
         spacing: Ui.gap;
+        // Both boxes fit "VISIBLE_STRING" and "const" below Fluent's 160px
+        // minimum, letting the inspector get narrower.
         Field {
             label: "Data type";
             ComboBox {
+                min-width: 140px;
                 model: App.type-names;
                 current-index <=> App.sub-type;
                 selected(value) => {
@@ -658,6 +690,7 @@ component SubInspector inherits VerticalLayout {
         Field {
             label: "Access";
             ComboBox {
+                min-width: 140px;
                 model: App.access-names;
                 current-index <=> App.sub-access;
                 selected(value) => {
@@ -700,6 +733,7 @@ component SubInspector inherits VerticalLayout {
             Checked {
                 invalid: !App.value-ok(min.text, App.sub-type);
                 min := LineEdit {
+                    min-width: 140px;
                     text <=> App.sub-min;
                     edited(text) => {
                         App.sub-edited("min", text);
@@ -713,6 +747,7 @@ component SubInspector inherits VerticalLayout {
             Checked {
                 invalid: !App.value-ok(max.text, App.sub-type);
                 max := LineEdit {
+                    min-width: 140px;
                     text <=> App.sub-max;
                     edited(text) => {
                         App.sub-edited("max", text);
@@ -755,11 +790,87 @@ component Placeholder inherits Rectangle {
     }
 }
 
+// The object list, the selected object and the subindex inspector, divided
+// by splitters. Dragging a splitter sets the width a side pane asks for;
+// the side panes give that width up, down to their minimum, whenever the
+// window is too narrow to leave the middle pane its minimum, and take it
+// back as the window widens again.
+component Panes inherits Rectangle {
+    // Minimums follow the contents: the list's two buttons with the pane's
+    // padding (the Add object form fits the same width), the object pane's
+    // index/name/kind row and subindex columns, the inspector's two combo
+    // boxes side by side.
+    property <length> list-min: 2 * Ui.button-width + 3 * Ui.gap;
+    property <length> list-max: 560px;
+    property <length> pane-min: 540px;
+    property <length> inspector-min: 304px;
+    property <length> inspector-max: 560px;
+    property <length> splitter-width: 5px;
+
+    // The list takes precedence over the inspector when space runs out.
+    property <length> list-width: max(root.list-min, min(App.wanted-list-width, root.list-max, root.width - 2 * root.splitter-width - root.pane-min - (App.has-object ? root.inspector-min : 0px)));
+    property <length> inspector-width: max(root.inspector-min, min(App.wanted-inspector-width, root.inspector-max, root.width - 2 * root.splitter-width - root.pane-min - root.list-width));
+
+    // Fixed, so the window's minimum doesn't depend on the current widths.
+    min-width: self.list-min + self.pane-min + self.inspector-min + 2 * self.splitter-width;
+    min-height: panes.min-height;
+
+    // Placed explicitly so that Panes doesn't take its size hints from the
+    // layout: those depend on the widths above, which depend on Panes' width.
+    // Heights don't, so the minimum height is still taken from it.
+    panes := HorizontalLayout {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        ObjectList {
+            width: root.list-width;
+        }
+
+        Splitter {
+            dragged(dx) => {
+                // Clamp the request itself, so dragging past a limit and
+                // back responds at once instead of after the overshoot.
+                App.wanted-list-width = max(root.list-min, min(root.list-width + dx, root.list-max));
+            }
+        }
+
+        if App.has-object: ObjectPane {
+            horizontal-stretch: 1;
+        }
+        if App.has-object: Splitter {
+            dragged(dx) => {
+                App.wanted-inspector-width = max(root.inspector-min, min(root.inspector-width - dx, root.inspector-max));
+            }
+        }
+        // Scrolls rather than cuts off its lower fields in a short window.
+        if App.has-object && App.has-sub: scroller := ScrollView {
+            width: root.inspector-width;
+            content-width: self.visible-width;
+            content-height: max(self.visible-height, inspector.min-height);
+            inspector := SubInspector {
+                x: 0;
+                y: 0;
+                width: scroller.content-width;
+                height: scroller.content-height;
+            }
+        }
+        if App.has-object && !App.has-sub: Placeholder {
+            width: root.inspector-width;
+            text: "Select a subindex to edit it";
+        }
+        if !App.has-object: Placeholder {
+            horizontal-stretch: 1;
+            text: "Select an object, or add one";
+        }
+    }
+}
+
 export component MainWindow inherits Window {
     title: (App.dirty ? "● " : "") + App.file-label + " - Dictator";
     preferred-width: 1320px;
     preferred-height: 780px;
-    min-width: 980px;
+    // The minimum width comes from the panes.
     min-height: 560px;
     background: Palette.background;
 
@@ -881,33 +992,7 @@ export component MainWindow inherits Window {
             vertical-stretch: 1;
             Tab {
                 title: "Object dictionary";
-                HorizontalLayout {
-                    ObjectList {
-                        width: 340px;
-                    }
-
-                    Separator {
-                        width: 1px;
-                    }
-
-                    if App.has-object: ObjectPane {
-                        horizontal-stretch: 1;
-                    }
-                    if App.has-object: Separator {
-                        width: 1px;
-                    }
-                    if App.has-object && App.has-sub: SubInspector {
-                        width: 352px;
-                    }
-                    if App.has-object && !App.has-sub: Placeholder {
-                        width: 352px;
-                        text: "Select a subindex to edit it";
-                    }
-                    if !App.has-object: Placeholder {
-                        horizontal-stretch: 1;
-                        text: "Select an object, or add one";
-                    }
-                }
+                Panes { }
             }
 
             Tab {
