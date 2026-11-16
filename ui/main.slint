@@ -1,9 +1,7 @@
-// Public Sans, bundled so every platform gets the same font. Widgets centre
-// the font's line box rather than its capitals; Public Sans's metrics put
-// capitals exactly in the middle, so text is centred in every widget.
-// SIL Open Font License 1.1, see fonts/OFL-PublicSans.txt.
-import "fonts/PublicSans-Regular.ttf";
-import "fonts/PublicSans-SemiBold.ttf";
+// JetBrains Mono NL (no ligatures, so "0x" stays as typed), bundled because
+// no monospace font name exists on every platform. SIL Open Font License 1.1,
+// see fonts/OFL-JetBrainsMono.txt.
+import "fonts/JetBrainsMonoNL-Regular.ttf";
 import { Button, LineEdit, ComboBox, CheckBox, ListView, TextEdit, TabWidget, Palette, ScrollView, AboutSlint } from "std-widgets.slint";
 
 export struct ObjectRow {
@@ -111,6 +109,7 @@ global Ui {
     out property <length> button-width: 116px;
     out property <length> control-height: 32px;
     out property <brush> hover: Palette.foreground.transparentize(0.93);
+    out property <string> mono: "JetBrains Mono NL";
 }
 
 component Caption inherits Text {
@@ -168,7 +167,7 @@ component AboutDialog inherits PopupWindow {
             }
 
             Caption {
-                text: "Licensed under MIT OR Apache-2.0.\nThe CanFestival C generator (dictator-canfestival) is a port of\nCanFestival objdictgen by E. Tisserant, F. Dupin and L. Bessard\nand is licensed under LGPL-2.1-or-later.\nPublic Sans typeface © The Public Sans Project Authors,\nSIL Open Font License 1.1.";
+                text: "Licensed under MIT OR Apache-2.0.\nThe CanFestival C generator (dictator-canfestival) is a port of\nCanFestival objdictgen by E. Tisserant, F. Dupin and L. Bessard\nand is licensed under LGPL-2.1-or-later.\nJetBrains Mono typeface © The JetBrains Mono Project Authors,\nSIL Open Font License 1.1.";
                 wrap: word-wrap;
             }
 
@@ -203,7 +202,7 @@ component ObjectItem inherits Rectangle {
         if !item.header: Text {
             text: item.index-text;
             width: 52px;
-            font-family: "Menlo";
+            font-family: Ui.mono;
             vertical-alignment: center;
             color: root.selected ? Palette.selection-foreground : item.disabled ? Ui.muted : Palette.foreground;
         }
@@ -227,7 +226,7 @@ component SubCells inherits HorizontalLayout {
     in property <SubRow> item;
     in property <brush> color: Palette.foreground;
     in property <int> weight: 400;
-    in property <string> mono: "Menlo";
+    in property <string> mono: Ui.mono;
     padding-left: Ui.gap;
     padding-right: Ui.gap;
     spacing: Ui.gap;
@@ -439,7 +438,7 @@ component ObjectPane inherits VerticalLayout {
                 width: 210px;
                 LineEdit {
                     text <=> App.obj-index-text;
-                    font-family: "Menlo";
+                    font-family: Ui.mono;
                     accepted => {
                         App.object-edited("index", self.text);
                     }
@@ -624,7 +623,7 @@ component SubInspector inherits VerticalLayout {
         label: "Default value";
         LineEdit {
             text <=> App.sub-default;
-            font-family: "Menlo";
+            font-family: Ui.mono;
             placeholder-text: "0, 0x10, $NODEID+0x180, text";
             edited(text) => {
                 App.sub-edited("default", text);
@@ -695,7 +694,6 @@ export component MainWindow inherits Window {
     min-width: 980px;
     min-height: 560px;
     background: Palette.background;
-    default-font-family: "Public Sans";
 
     about := AboutDialog {
         x: (root.width - 460px) / 2;
