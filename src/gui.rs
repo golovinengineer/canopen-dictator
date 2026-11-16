@@ -582,16 +582,32 @@ impl Gui {
 
     // -------------------------------------------------------------- files
 
-    fn confirm_discard(&self) -> bool {
+    /// Offer to save unsaved changes before they would be lost. Returns
+    /// whether to go ahead: false on Cancel, or when saving failed or the
+    /// Save As dialog was cancelled.
+    fn settle_unsaved(&self) -> bool {
         if !self.state.borrow().dirty {
             return true;
         }
-        rfd::MessageDialog::new()
+        const SAVE: &str = "Save";
+        const DONT_SAVE: &str = "Don't Save";
+        let label = self.app().get_file_label();
+        let answer = rfd::MessageDialog::new()
             .set_title("Unsaved changes")
-            .set_description("The project has unsaved changes. Discard them?")
-            .set_buttons(rfd::MessageButtons::YesNo)
-            .show()
-            == rfd::MessageDialogResult::Yes
+            .set_description(format!("Save the changes to {label}?"))
+            .set_buttons(rfd::MessageButtons::YesNoCancelCustom(SAVE.into(), DONT_SAVE.into(), "Cancel".into()))
+            .show();
+        match answer {
+            rfd::MessageDialogResult::Custom(b) if b == SAVE => match self.save_project() {
+                Ok(()) => !self.state.borrow().dirty,
+                Err(e) => {
+                    self.error(e);
+                    false
+                }
+            },
+            rfd::MessageDialogResult::Custom(b) if b == DONT_SAVE => true,
+            _ => false,
+        }
     }
 
     fn load(&self, od: ObjectDictionary, path: Option<PathBuf>, dirty: bool) {
@@ -637,7 +653,7 @@ impl Gui {
     }
 
     fn open_project(&self) -> Result<()> {
-        if !self.confirm_discard() {
+        if !self.settle_unsaved() {
             return Ok(());
         }
         let picked = self
@@ -755,7 +771,7 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
     }
 
     on!(on_new_project, |g| {
-        if g.confirm_discard() {
+        if g.settle_unsaved() {
             g.load(ObjectDictionary::new_default(), None, false);
             g.status("New project");
         }
@@ -776,7 +792,7 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
         g.export("documentation", &format!("{stem}.md"), "md", |od, path| io::export_markdown(od, path, &project))
     });
     // Hiding the only window ends `run()`.
-    on!(on_quit, |g| if g.confirm_discard() { g.ui.hide().map_err(Into::into) } else { Ok(()) });
+    on!(on_quit, |g| if g.settle_unsaved() { g.ui.hide().map_err(Into::into) } else { Ok(()) });
     on!(on_filter_changed, |g, text| {
         g.state.borrow_mut().filter = text.to_string();
         g.refresh_objects();
@@ -808,7 +824,7 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
 
     let weak = Rc::downgrade(&gui);
     gui.ui.window().on_close_requested(move || match weak.upgrade() {
-        Some(g) if !g.confirm_discard() => slint::CloseRequestResponse::KeepWindowShown,
+        Some(g) if !g.settle_unsaved() => slint::CloseRequestResponse::KeepWindowShown,
         _ => slint::CloseRequestResponse::HideWindow,
     });
 
