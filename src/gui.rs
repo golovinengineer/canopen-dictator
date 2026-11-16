@@ -183,6 +183,19 @@ impl Gui {
         }
         self.objects.set_vec(rows);
         self.app().set_selected_index(st.selected.map(|i| i as i32).unwrap_or(-1));
+        drop(st);
+        self.reveal();
+    }
+
+    /// Scroll the selected object and subindex into view.
+    fn reveal(&self) {
+        let selected = self.state.borrow().selected.map(i32::from);
+        let row = selected
+            .and_then(|index| self.objects.iter().position(|r| !r.header && r.index == index))
+            .map_or(-1, |row| row as i32);
+        let app = self.app();
+        app.set_selected_row(row);
+        app.set_reveal_serial(app.get_reveal_serial().wrapping_add(1));
     }
 
     fn refresh_object(&self) {
@@ -214,6 +227,7 @@ impl Gui {
         self.subs.set_vec(obj.subs.iter().map(sub_row).collect::<Vec<_>>());
         drop(st);
         self.refresh_sub();
+        self.reveal();
     }
 
     fn refresh_sub(&self) {

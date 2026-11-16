@@ -41,6 +41,10 @@ export global App {
 
     in property <[ObjectRow]> objects;
     in property <int> selected-index: -1;
+    // Position of the selected object in `objects`, header rows included.
+    in property <int> selected-row: -1;
+    // Rust bumps this to scroll the selected object and subindex into view.
+    in property <int> reveal-serial;
     in-out property <string> filter;
 
     in property <[string]> kind-names;
@@ -329,6 +333,12 @@ component FormRows inherits VerticalLayout {
 
 component ObjectList inherits VerticalLayout {
     property <bool> adding;
+    property <int> reveal-serial: App.reveal-serial;
+    changed reveal-serial => {
+        if App.selected-row >= 0 {
+            list.ensure-row-visible(App.selected-row, ScrollBehavior.smooth);
+        }
+    }
     spacing: Ui.gap;
     padding: Ui.gap;
     Field {
@@ -414,7 +424,7 @@ component ObjectList inherits VerticalLayout {
         border-radius: 6px;
         clip: true;
         vertical-stretch: 1;
-        ListView {
+        list := ListView {
             for entry in App.objects: ObjectItem {
                 item: entry;
                 selected: !entry.header && entry.index == App.selected-index;
@@ -427,6 +437,12 @@ component ObjectList inherits VerticalLayout {
 }
 
 component ObjectPane inherits VerticalLayout {
+    property <int> reveal-serial: App.reveal-serial;
+    changed reveal-serial => {
+        if App.selected-sub >= 0 {
+            subs.ensure-row-visible(App.selected-sub, ScrollBehavior.smooth);
+        }
+    }
     spacing: Ui.gap;
     padding: Ui.gap;
     GridLayout {
@@ -555,7 +571,7 @@ component ObjectPane inherits VerticalLayout {
                 }
             }
 
-            ListView {
+            subs := ListView {
                 for entry[i] in App.subs: SubItem {
                     item: entry;
                     selected: i == App.selected-sub;
