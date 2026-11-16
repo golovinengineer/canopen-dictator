@@ -385,6 +385,9 @@ component ObjectList inherits VerticalLayout {
                     label: "Index (hex)";
                     width: Ui.button-width;
                     new-index := LineEdit {
+                        // Fluent's LineEdit is at least 160px wide and would
+                        // spill under the Kind box; four hex digits fit here.
+                        min-width: 0px;
                         placeholder-text: "2000";
                     }
                 }
