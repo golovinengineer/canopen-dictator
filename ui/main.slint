@@ -1,3 +1,9 @@
+// Public Sans, bundled so every platform gets the same font. Widgets centre
+// the font's line box rather than its capitals; Public Sans's metrics put
+// capitals exactly in the middle, so text is centred in every widget.
+// SIL Open Font License 1.1, see fonts/OFL-PublicSans.txt.
+import "fonts/PublicSans-Regular.ttf";
+import "fonts/PublicSans-SemiBold.ttf";
 import { Button, LineEdit, ComboBox, CheckBox, ListView, TextEdit, TabWidget, Palette, ScrollView, AboutSlint } from "std-widgets.slint";
 
 export struct ObjectRow {
@@ -98,13 +104,18 @@ global Ui {
     out property <length> gap: 8px;
     out property <length> half-gap: 4px;
     out property <length> row-height: 28px;
-    out property <brush> muted: Palette.foreground.transparentize(0.45);
+    // Secondary text: close to Fluent's own secondary foreground, readable
+    // without being mistaken for primary content.
+    out property <brush> muted: Palette.foreground.transparentize(0.32);
+    out property <relative-font-size> caption-size: 0.93rem;
+    out property <length> button-width: 116px;
+    out property <length> control-height: 32px;
     out property <brush> hover: Palette.foreground.transparentize(0.93);
 }
 
 component Caption inherits Text {
     color: Ui.muted;
-    font-size: 0.85rem;
+    font-size: Ui.caption-size;
     vertical-alignment: center;
 }
 
@@ -125,6 +136,11 @@ component Field inherits VerticalLayout {
     }
 
     @children
+}
+
+// Every action button has the same size, whatever its label.
+component ActionButton inherits Button {
+    width: Ui.button-width;
 }
 
 component Separator inherits Rectangle {
@@ -152,7 +168,7 @@ component AboutDialog inherits PopupWindow {
             }
 
             Caption {
-                text: "Licensed under MIT OR Apache-2.0.\nThe CanFestival C generator (dictator-canfestival) is a port of\nCanFestival objdictgen by E. Tisserant, F. Dupin and L. Bessard\nand is licensed under LGPL-2.1-or-later.";
+                text: "Licensed under MIT OR Apache-2.0.\nThe CanFestival C generator (dictator-canfestival) is a port of\nCanFestival objdictgen by E. Tisserant, F. Dupin and L. Bessard\nand is licensed under LGPL-2.1-or-later.\nPublic Sans typeface © The Public Sans Project Authors,\nSIL Open Font License 1.1.";
                 wrap: word-wrap;
             }
 
@@ -200,7 +216,7 @@ component ObjectItem inherits Rectangle {
         }
         if !item.header: Text {
             text: item.kind;
-            font-size: 0.8rem;
+            font-size: Ui.caption-size;
             vertical-alignment: center;
             color: root.selected ? Palette.selection-foreground : Ui.muted;
         }
@@ -235,7 +251,7 @@ component SubCells inherits HorizontalLayout {
 
     Text {
         text: item.type-name;
-        width: 64px;
+        width: 100px;
         vertical-alignment: center;
         color: root.color;
         font-weight: root.weight;
@@ -316,24 +332,27 @@ component ObjectList inherits VerticalLayout {
     property <bool> adding;
     spacing: Ui.gap;
     padding: Ui.gap;
-    LineEdit {
-        placeholder-text: "Filter by index or name";
-        text <=> App.filter;
-        edited(text) => {
-            App.filter-changed(text);
+    Field {
+        label: "Filter";
+        LineEdit {
+            placeholder-text: "Index or name";
+            text <=> App.filter;
+            edited(text) => {
+                App.filter-changed(text);
+            }
         }
     }
 
     HorizontalLayout {
         spacing: Ui.gap;
-        Button {
+        ActionButton {
             text: root.adding ? "Cancel" : "Add object";
             clicked => {
                 root.adding = !root.adding;
             }
         }
 
-        Button {
+        ActionButton {
             text: "Delete";
             enabled: App.has-object;
             clicked => {
@@ -354,7 +373,7 @@ component ObjectList inherits VerticalLayout {
                 spacing: Ui.gap;
                 Field {
                     label: "Index (hex)";
-                    width: 88px;
+                    width: Ui.button-width;
                     new-index := LineEdit {
                         placeholder-text: "2000";
                     }
@@ -379,7 +398,7 @@ component ObjectList inherits VerticalLayout {
                 }
             }
 
-            create := Button {
+            create := ActionButton {
                 text: "Create";
                 primary: true;
                 clicked => {
@@ -411,63 +430,65 @@ component ObjectList inherits VerticalLayout {
 component ObjectPane inherits VerticalLayout {
     spacing: Ui.gap;
     padding: Ui.gap;
-    HorizontalLayout {
-        spacing: Ui.gap;
-        Field {
-            label: "Index (hex, Enter to apply)";
-            width: 160px;
-            LineEdit {
-                text <=> App.obj-index-text;
-                font-family: "Menlo";
-                accepted => {
-                    App.object-edited("index", self.text);
+    GridLayout {
+        spacing-horizontal: Ui.gap;
+        spacing-vertical: Ui.gap;
+        Row {
+            Field {
+                label: "Index (hex, Enter to apply)";
+                width: 210px;
+                LineEdit {
+                    text <=> App.obj-index-text;
+                    font-family: "Menlo";
+                    accepted => {
+                        App.object-edited("index", self.text);
+                    }
+                }
+            }
+
+            Field {
+                label: "Name";
+                horizontal-stretch: 1;
+                LineEdit {
+                    text <=> App.obj-name;
+                    edited(text) => {
+                        App.object-edited("name", text);
+                    }
+                }
+            }
+
+            Field {
+                label: "Kind";
+                width: 160px;
+                ComboBox {
+                    model: App.kind-names;
+                    current-index <=> App.obj-kind;
+                    selected(value) => {
+                        App.object-edited("kind", value);
+                    }
                 }
             }
         }
 
-        Field {
-            label: "Name";
-            horizontal-stretch: 1;
-            LineEdit {
-                text <=> App.obj-name;
-                edited(text) => {
-                    App.object-edited("name", text);
+        Row {
+            CheckBox {
+                height: Ui.control-height;
+                text: "Enabled (included in exports)";
+                checked <=> App.obj-enabled;
+                toggled => {
+                    App.object-edited("enabled", self.checked ? "true" : "false");
+                }
+            }
+
+            CheckBox {
+                height: Ui.control-height;
+                text: "CanFestival callbacks";
+                checked <=> App.obj-callback;
+                toggled => {
+                    App.object-edited("callback", self.checked ? "true" : "false");
                 }
             }
         }
-
-        Field {
-            label: "Kind";
-            width: 150px;
-            ComboBox {
-                model: App.kind-names;
-                current-index <=> App.obj-kind;
-                selected(value) => {
-                    App.object-edited("kind", value);
-                }
-            }
-        }
-    }
-
-    HorizontalLayout {
-        spacing: Ui.gap * 2;
-        CheckBox {
-            text: "Enabled (included in exports)";
-            checked <=> App.obj-enabled;
-            toggled => {
-                App.object-edited("enabled", self.checked ? "true" : "false");
-            }
-        }
-
-        CheckBox {
-            text: "CanFestival callbacks";
-            checked <=> App.obj-callback;
-            toggled => {
-                App.object-edited("callback", self.checked ? "true" : "false");
-            }
-        }
-
-        Rectangle { }
     }
 
     if App.obj-note != "": Caption {
@@ -493,7 +514,7 @@ component ObjectPane inherits VerticalLayout {
             horizontal-stretch: 1;
         }
 
-        Button {
+        ActionButton {
             text: "Add subindex";
             enabled: !App.obj-is-var;
             clicked => {
@@ -501,7 +522,7 @@ component ObjectPane inherits VerticalLayout {
             }
         }
 
-        Button {
+        ActionButton {
             text: "Remove";
             enabled: !App.obj-is-var && App.has-sub;
             clicked => {
@@ -552,12 +573,8 @@ component SubInspector inherits VerticalLayout {
     spacing: Ui.gap;
     padding: Ui.gap;
     alignment: start;
-    Heading {
-        text: App.obj-is-var ? "Value" : "Subindex";
-    }
-
     Field {
-        label: App.obj-is-var ? "Name (same as object)" : "Name";
+        label: App.obj-is-var ? "Value name (same as object)" : "Subindex name";
         LineEdit {
             enabled: !App.obj-is-var;
             text <=> App.sub-name;
@@ -678,6 +695,7 @@ export component MainWindow inherits Window {
     min-width: 980px;
     min-height: 560px;
     background: Palette.background;
+    default-font-family: "Public Sans";
 
     about := AboutDialog {
         x: (root.width - 460px) / 2;
@@ -685,88 +703,85 @@ export component MainWindow inherits Window {
         width: 460px;
     }
 
-    VerticalLayout {
-        // Toolbar
-        HorizontalLayout {
-            padding: Ui.gap;
-            spacing: Ui.gap;
-            Button {
-                text: "New";
-                clicked => {
+    MenuBar {
+        Menu {
+            title: "File";
+            MenuItem {
+                title: "New";
+                activated => {
                     App.new-project();
                 }
             }
 
-            Button {
-                text: "Open…";
-                clicked => {
+            MenuItem {
+                title: "Open…";
+                activated => {
                     App.open-project();
                 }
             }
 
-            Button {
-                text: "Save";
-                primary: App.dirty;
-                clicked => {
+            MenuSeparator { }
+
+            MenuItem {
+                title: "Save";
+                activated => {
                     App.save-project();
                 }
             }
 
-            Button {
-                text: "Save As…";
-                clicked => {
+            MenuItem {
+                title: "Save As…";
+                activated => {
                     App.save-project-as();
                 }
             }
 
-            Rectangle {
-                horizontal-stretch: 1;
-            }
+            MenuSeparator { }
 
-            Caption {
-                text: "Export";
-            }
+            Menu {
+                title: "Export";
+                MenuItem {
+                    title: "CanFestival C code…";
+                    activated => {
+                        App.export-c();
+                    }
+                }
 
-            Button {
-                text: "C code";
-                clicked => {
-                    App.export-c();
+                MenuItem {
+                    title: "CanFestival OD…";
+                    activated => {
+                        App.export-od();
+                    }
+                }
+
+                MenuItem {
+                    title: "EDS…";
+                    activated => {
+                        App.export-eds();
+                    }
+                }
+
+                MenuItem {
+                    title: "Documentation…";
+                    activated => {
+                        App.export-docs();
+                    }
                 }
             }
+        }
 
-            Button {
-                text: "OD";
-                clicked => {
-                    App.export-od();
-                }
-            }
-
-            Button {
-                text: "EDS";
-                clicked => {
-                    App.export-eds();
-                }
-            }
-
-            Button {
-                text: "Docs";
-                clicked => {
-                    App.export-docs();
-                }
-            }
-
-            Button {
-                text: "About";
-                clicked => {
+        Menu {
+            title: "Help";
+            MenuItem {
+                title: "About Dictator";
+                activated => {
                     about.show();
                 }
             }
         }
+    }
 
-        Separator {
-            height: 1px;
-        }
-
+    VerticalLayout {
         TabWidget {
             vertical-stretch: 1;
             Tab {
