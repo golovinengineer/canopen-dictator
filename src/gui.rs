@@ -26,11 +26,22 @@ slint::include_modules!();
 struct State {
     od: ObjectDictionary,
     path: Option<PathBuf>,
-    dirty: bool,
+    /// The dictionary as last opened or saved; `None` when it has never
+    /// been saved as a project, such as after an import.
+    saved: Option<ObjectDictionary>,
     selected: Option<u16>,
     /// Position in the selected object's `subs`.
     selected_sub: Option<usize>,
     filter: String,
+}
+
+impl State {
+    /// Whether the dictionary differs from the saved one. Comparing the
+    /// content means an edit that changes nothing, or is undone by hand,
+    /// leaves the project clean.
+    fn dirty(&self) -> bool {
+        self.saved.as_ref() != Some(&self.od)
+    }
 }
 
 struct Gui {
@@ -142,9 +153,10 @@ impl Gui {
         self.app().set_status_is_error(true);
     }
 
-    fn mark_dirty(&self) {
-        self.state.borrow_mut().dirty = true;
-        self.app().set_dirty(true);
+    /// Show in the title whether the dictionary has unsaved changes.
+    fn refresh_dirty(&self) {
+        let dirty = self.state.borrow().dirty();
+        self.app().set_dirty(dirty);
     }
 
     // ------------------------------------------------------------ refresh
@@ -158,7 +170,7 @@ impl Gui {
             .and_then(|n| n.to_str())
             .unwrap_or("Untitled");
         self.app().set_file_label(label.into());
-        self.app().set_dirty(st.dirty);
+        self.app().set_dirty(st.dirty());
     }
 
     fn refresh_objects(&self) {
@@ -383,7 +395,7 @@ impl Gui {
             })?,
             _ => bail!("unknown object field {key}"),
         }
-        self.mark_dirty();
+        self.refresh_dirty();
         Ok(())
     }
 
@@ -417,7 +429,7 @@ impl Gui {
         if let Some(row) = row {
             self.subs.set_row_data(pos, row);
         }
-        self.mark_dirty();
+        self.refresh_dirty();
         Ok(())
     }
 
@@ -434,7 +446,7 @@ impl Gui {
             st.filter.clear();
         }
         self.app().set_filter("".into());
-        self.mark_dirty();
+        self.refresh_dirty();
         self.refresh_objects();
         self.select_object(Some(index));
         self.status(format!("Added object 0x{index:04X}"));
@@ -457,7 +469,7 @@ impl Gui {
                 .or_else(|| st.od.objects.range(..index).next_back())
                 .map(|(i, _)| *i);
         }
-        self.mark_dirty();
+        self.refresh_dirty();
         self.refresh_objects();
         self.select_object(next);
         self.status(format!("Deleted object 0x{removed:04X}"));
@@ -498,7 +510,7 @@ impl Gui {
             Ok(())
         })?;
         self.state.borrow_mut().selected_sub = Some(new_pos);
-        self.mark_dirty();
+        self.refresh_dirty();
         self.refresh_object();
         Ok(())
     }
@@ -521,7 +533,7 @@ impl Gui {
             Ok(())
         })?;
         self.state.borrow_mut().selected_sub = Some(pos.min(len.saturating_sub(1)));
-        self.mark_dirty();
+        self.refresh_dirty();
         self.refresh_object();
         Ok(())
     }
@@ -575,7 +587,7 @@ impl Gui {
                 _ => bail!("unknown setting {key}"),
             }
         }
-        self.mark_dirty();
+        self.refresh_dirty();
         self.status("");
         Ok(())
     }
@@ -586,7 +598,7 @@ impl Gui {
     /// whether to go ahead: false on Cancel, or when saving failed or the
     /// Save As dialog was cancelled.
     fn settle_unsaved(&self) -> bool {
-        if !self.state.borrow().dirty {
+        if !self.state.borrow().dirty() {
             return true;
         }
         const SAVE: &str = "Save";
@@ -599,7 +611,7 @@ impl Gui {
             .show();
         match answer {
             rfd::MessageDialogResult::Custom(b) if b == SAVE => match self.save_project() {
-                Ok(()) => !self.state.borrow().dirty,
+                Ok(()) => !self.state.borrow().dirty(),
                 Err(e) => {
                     self.error(e);
                     false
@@ -614,7 +626,8 @@ impl Gui {
         {
             let mut st = self.state.borrow_mut();
             let first = od.objects.keys().next().copied();
-            *st = State { od, path, dirty, selected: first, selected_sub: first.map(|_| 0), filter: String::new() };
+            let saved = (!dirty).then(|| od.clone());
+            *st = State { od, path, saved, selected: first, selected_sub: first.map(|_| 0), filter: String::new() };
         }
         self.app().set_filter("".into());
         self.refresh_all();
@@ -671,7 +684,7 @@ impl Gui {
         {
             let mut st = self.state.borrow_mut();
             st.path = Some(path.clone());
-            st.dirty = false;
+            st.saved = Some(st.od.clone());
         }
         self.refresh_title();
         self.status(format!("Saved {}", path.display()));
