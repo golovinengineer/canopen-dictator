@@ -23,7 +23,7 @@ anyhow.workspace = true
 dictator-core.workspace = true
 dictator-canfestival.workspace = true
 rfd = "0.18.0"
-slint = "1.18.1"
+slint = "1.19.0"
 
 [build-dependencies]
-slint-build = "1.18.1"
+slint-build = "1.19.0"
