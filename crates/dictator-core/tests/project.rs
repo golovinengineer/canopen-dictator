@@ -1,7 +1,9 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 mod common;
 
-use dictator::model::*;
-use dictator::project;
+use dictator_core::model::*;
+use dictator_core::project;
 
 #[test]
 fn xdd_import_reads_sample() {

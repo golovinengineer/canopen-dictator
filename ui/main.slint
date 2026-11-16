@@ -1,4 +1,4 @@
-import { Button, LineEdit, ComboBox, CheckBox, ListView, TextEdit, TabWidget, Palette, ScrollView } from "std-widgets.slint";
+import { Button, LineEdit, ComboBox, CheckBox, ListView, TextEdit, TabWidget, Palette, ScrollView, AboutSlint } from "std-widgets.slint";
 
 export struct ObjectRow {
     index: int,
@@ -71,6 +71,7 @@ export global App {
 
     in property <[FormField]> device-fields;
     in property <[FormField]> canfestival-fields;
+    in property <string> version;
 
     callback new-project();
     callback open-project();
@@ -127,6 +128,38 @@ component Field inherits VerticalLayout {
 
 component Separator inherits Rectangle {
     background: Palette.border;
+}
+
+// Required by the Slint royalty-free licence: AboutSlint reachable from the
+// top level of the application.
+component AboutDialog inherits PopupWindow {
+    close-policy: close-on-click-outside;
+    Rectangle {
+        background: Palette.background;
+        border-color: Palette.border;
+        border-width: 1px;
+        border-radius: 6px;
+        VerticalLayout {
+            padding: 2 * Ui.gap;
+            spacing: Ui.gap;
+            Heading {
+                text: "Dictator " + App.version;
+            }
+
+            Text {
+                text: "CANopen object dictionary editor";
+            }
+
+            Caption {
+                text: "Licensed under MIT OR Apache-2.0.\nThe CanFestival C generator (dictator-canfestival) is a port of\nCanFestival objdictgen by E. Tisserant, F. Dupin and L. Bessard\nand is licensed under LGPL-2.1-or-later.";
+                wrap: word-wrap;
+            }
+
+            AboutSlint {
+                preferred-height: 180px;
+            }
+        }
+    }
 }
 
 component ObjectItem inherits Rectangle {
@@ -645,6 +678,12 @@ export component MainWindow inherits Window {
     min-height: 560px;
     background: Palette.background;
 
+    about := AboutDialog {
+        x: (root.width - 460px) / 2;
+        y: 60px;
+        width: 460px;
+    }
+
     VerticalLayout {
         // Toolbar
         HorizontalLayout {
@@ -705,6 +744,13 @@ export component MainWindow inherits Window {
                 text: "Docs";
                 clicked => {
                     App.export-docs();
+                }
+            }
+
+            Button {
+                text: "About";
+                clicked => {
+                    about.show();
                 }
             }
         }

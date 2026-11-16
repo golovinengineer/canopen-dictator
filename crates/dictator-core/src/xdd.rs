@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! Import of CANopen XDD device descriptions (CiA 311), as written by
 //! CANopenEditor / libedssharp.
 //!

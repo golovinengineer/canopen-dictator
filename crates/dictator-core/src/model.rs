@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! In-memory object dictionary model shared by the project file, importers,
 //! exporters and the GUI.
 

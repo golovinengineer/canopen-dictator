@@ -1,0 +1,11 @@
+[package]
+name = "dictator-core"
+description = "CANopen object dictionary model, project file, XDD import, EDS and Markdown export"
+license = "MIT OR Apache-2.0"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+roxmltree = "0.21.2"
+toml = "1.2.1"

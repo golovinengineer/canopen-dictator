@@ -21,6 +21,8 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
 | CanFestival settings (node name/id/type, callbacks, save flags) are first-class project fields | XDD has no place for them |
 | Callbacks default to off | CanFestival's own default; enabled per object |
 | Exports use the project's `created` time for creation *and* modification | Re-exporting an unchanged project gives byte-identical files |
+| Workspace of three crates; `dictator-canfestival` is LGPL-2.1-or-later, the rest MIT OR Apache-2.0 | The C generator is a port of LGPL CanFestival code and cannot be relicensed; keeping it in its own crate leaves everything else permissive |
+| Slint used under its Royalty-free License 2.0, attribution via `AboutSlint` in the About dialog | Desktop use is free under any app licence; the GPLv3 option would force GPL on the whole binary |
 
 ## Status
 
@@ -28,12 +30,12 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
 
 | Area | Where | Verified by |
 | --- | --- | --- |
-| Model | `src/model.rs` | used by all tests |
-| XDD import (CANopenEditor 4.x flavour) | `src/xdd.rs` | `tests/project.rs` |
-| TOML project load/save | `src/project.rs` | `tests/project.rs` (lossless, stable, escaping, checked-in sample) |
-| EDS export, CANopenEditor layout | `src/export/eds.rs` | `tests/eds.rs`: equal to sample except the two `Modification*` lines |
-| CanFestival C/H export | `src/canfestival/` | `tests/canfestival.rs`: token-identical to the sample (it is clang-formatted, so whitespace is ignored) |
-| Markdown docs export, CANopenEditor layout | `src/export/markdown.rs` | `tests/markdown.rs`: equal except tool/project/modified lines |
+| Model | `crates/dictator-core/src/model.rs` | used by all tests |
+| XDD import (CANopenEditor 4.x flavour) | `crates/dictator-core/src/xdd.rs` | `crates/dictator-core/tests/project.rs` |
+| TOML project load/save | `crates/dictator-core/src/project.rs` | `crates/dictator-core/tests/project.rs` (lossless, stable, escaping, checked-in sample) |
+| EDS export, CANopenEditor layout | `crates/dictator-core/src/export/eds.rs` | `crates/dictator-core/tests/eds.rs`: equal to sample except the two `Modification*` lines |
+| CanFestival C/H export | `crates/dictator-canfestival/` | `crates/dictator-canfestival/tests/canfestival.rs`: token-identical to the sample (it is clang-formatted, so whitespace is ignored) |
+| Markdown docs export, CANopenEditor layout | `crates/dictator-core/src/export/markdown.rs` | `crates/dictator-core/tests/markdown.rs`: equal except tool/project/modified lines |
 | Command line `export` / `import` | `src/main.rs`, `src/io.rs` | run by hand |
 | GUI: open/save, import XDD, filter, add/delete/renumber object, change kind, add/remove subindex, edit fields, device + generator settings, exports | `ui/main.slint`, `src/gui.rs` | layout checked from a `slint-viewer` screenshot; app start checked; **editing actions not yet exercised by hand or by tests** |
 
@@ -42,7 +44,7 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
 1. **GUI hardening**
    - click through every action once; move the editing operations
      (`change_kind`, `sync_highest_sub`, add/remove sub) from `src/gui.rs`
-     into the library and unit-test them
+     into `dictator-core` and unit-test them
    - undo/redo; keyboard shortcuts and a menu bar; remember export targets in
      the project so re-export is one click
    - combo box for node type; multi-line device description
@@ -62,7 +64,7 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
    - XDD export (so a project can go back to CANopenEditor)
    - EDS import, CanFestival `.od` import, DCF export
    - EDS: LSS / boot-up flags, `CompactSubObj`, `ObjFlags`
-6. **C generator completeness** (all marked `TODO` in `src/canfestival/`)
+6. **C generator completeness** (all marked `TODO` in `crates/dictator-canfestival/`)
    - user value-range types (indexes 0x0001-0x0260) and `valueRangeTest` cases
    - per-entry string `buffer_size`, pointer variables, DOMAIN checks
    - device profiles (`config/*.prf`: DS-401, DS-402 ...) and DS-302
@@ -76,7 +78,7 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
 
 ### Project file format
 
-Documented at the top of `src/project.rs`; `assets/legacy_objdict/legacy.objdict.toml`
+Documented at the top of `crates/dictator-core/src/project.rs`; `assets/legacy_objdict/legacy.objdict.toml`
 is a full example. A VAR keeps its value fields on the object table; ARRAY and
 RECORD have a `sub = [ {...}, ]` array with sub 0 written explicitly, and
 per-subindex descriptions in `[object.0xNNNN.doc]`. Defaults and limits are
@@ -84,7 +86,7 @@ strings so `0x22000508` and `$NODEID+0x180` survive as typed.
 
 ### What "CanFestival-compatible" means here
 
-`src/canfestival/` is a port of CanFestival's `node.py`, `eds_utils.py` and
+`crates/dictator-canfestival` is a port of CanFestival's `node.py`, `eds_utils.py` and
 `gen_cfile.py` (reference copy: `co_objdictgen`). The old chain
 imported an EDS, and that import, not the templates, decides most names:
 
@@ -114,7 +116,8 @@ OCTET_STRING because CANopenEditor writes DOMAIN the same way.
 
 ### Testing
 
-`cargo test` runs the golden tests against `assets/legacy_objdict/`. The C test
+`cargo test --workspace` runs the golden tests against `assets/legacy_objdict/`
+(plain `cargo test` at the root only tests the app crate). The C test
 enables callbacks on 0x2000+ before generating, because the reference `.od`
 had them set by hand; the checked-in sample project has them enabled too.
 
@@ -127,9 +130,14 @@ components (grid placement), hence `item`.
 
 ## Open items
 
-- **Licences.** `src/canfestival/` is a port of LGPL-2.1 CanFestival code, and
-  Slint is offered under GPLv3, a royalty-free licence and a commercial one.
-  Decide how the app is distributed before publishing it.
+- **Licences** are settled (see Decisions and `README.md`). Keep in mind:
+  code ported from CanFestival goes into `dictator-canfestival` only, with an
+  `LGPL-2.1-or-later` SPDX header; `dictator-core` must not depend on it. If
+  the app ever targets an embedded device, the Slint royalty-free licence does
+  not cover that.
+  Importers and exporters for CANopenEditor formats (XDD, its EDS and
+  Markdown layout) are written from the file format and sample files, never
+  translated from libEDSsharp's C# source (GPL), so they stay MIT/Apache.
 - **Modification date** in EDS/docs equals the creation date (see Decisions).
   If a real one is wanted, it has to come from somewhere other than the
   project file, or accept a changed line on every save.

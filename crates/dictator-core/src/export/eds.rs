@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! EDS export (CiA 306), laid out the way CANopenEditor writes it so the
 //! output can be diffed against files produced by that tool.
 //!

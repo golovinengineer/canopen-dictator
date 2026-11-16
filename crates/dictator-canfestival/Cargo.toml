@@ -1,0 +1,10 @@
+[package]
+name = "dictator-canfestival"
+description = "CanFestival-compatible object dictionary C code generator (port of CanFestival objdictgen)"
+license = "LGPL-2.1-or-later"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+dictator-core.workspace = true

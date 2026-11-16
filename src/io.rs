@@ -1,11 +1,14 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! File-level operations shared by the GUI and the command line.
 
 use std::path::Path;
 
 use anyhow::{Context, Result, anyhow};
 
-use crate::model::ObjectDictionary;
-use crate::{canfestival, export, project, xdd};
+use dictator_canfestival as canfestival;
+use dictator_core::model::ObjectDictionary;
+use dictator_core::{export, project, xdd};
 
 pub fn is_xdd(path: &Path) -> bool {
     path.extension()

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! Slint front end: pushes the model into `App` global properties and
 //! applies the edits the UI reports back.
 //!
@@ -13,9 +15,11 @@ use std::rc::Rc;
 use anyhow::{Result, anyhow, bail};
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
-use dictator::canfestival::ds301;
-use dictator::model::*;
-use dictator::{io, project};
+use dictator_canfestival::ds301;
+use dictator_core::model::*;
+use dictator_core::project;
+
+use crate::io;
 
 slint::include_modules!();
 
@@ -705,6 +709,7 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
     let app = gui.app();
     app.set_objects(gui.objects.clone().into());
     app.set_subs(gui.subs.clone().into());
+    app.set_version(env!("CARGO_PKG_VERSION").into());
     app.set_kind_names(names(ObjectKind::ALL, ObjectKind::short));
     app.set_type_names(names(DataType::ALL, DataType::cia_name));
     app.set_access_names(names(Access::ALL, Access::short));

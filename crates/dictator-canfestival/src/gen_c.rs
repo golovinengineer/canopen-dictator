@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Part of the Rust port of CanFestival objdictgen; see lib.rs for copyright.
+
 //! Port of CanFestival's `gen_cfile.py`: object dictionary `.c` / `.h`.
 //!
 //! The text layout follows the Python generator line by line so the output
@@ -18,7 +21,7 @@ use anyhow::{Result, bail};
 
 use super::ds301::{self, OD_IDENTICAL_SUBINDEXES, OD_MULTIPLE_SUBINDEXES};
 use super::node::{CfEntry, CfNode, CfSub, Value};
-use crate::model::{DataType, NodeType, ObjectDictionary};
+use dictator_core::model::{DataType, NodeType, ObjectDictionary};
 
 const CATEGORIES: [(&str, u16, u16); 6] = [
     ("SDO_SVR", 0x1200, 0x127F),

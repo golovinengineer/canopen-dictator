@@ -1,6 +1,8 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 mod common;
 
-use dictator::export::eds;
+use dictator_core::export::eds;
 
 /// Lines that legitimately differ: the sample was exported at a later time
 /// than the project was created, and we keep no modification timestamp.

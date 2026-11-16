@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Part of the Rust port of CanFestival objdictgen; see lib.rs for copyright.
+
 //! CanFestival's built-in DS-301 mapping (`MappingDictionary` in `node.py`).
 //!
 //! For indexes found here CanFestival ignores the names, types and access

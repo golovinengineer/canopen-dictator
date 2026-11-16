@@ -1,6 +1,9 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Part of the Rust port of CanFestival objdictgen; see lib.rs for copyright.
+
 mod common;
 
-use dictator::canfestival::gen_c;
+use dictator_canfestival::gen_c;
 
 /// The reference files were run through clang-format, so only the token
 /// stream is comparable: drop all whitespace.

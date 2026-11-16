@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! Native project file (`*.objdict.toml`).
 //!
 //! The file is written by hand rather than through a TOML serializer so the

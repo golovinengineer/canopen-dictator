@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Part of the Rust port of CanFestival objdictgen; see lib.rs for copyright.
+
 //! The object dictionary as CanFestival sees it after importing an EDS
 //! (`eds_utils.py: GenerateNode`).
 //!
@@ -18,7 +21,7 @@ use std::collections::BTreeMap;
 use anyhow::{Result, anyhow, bail};
 
 use super::ds301::{self, Default as TableDefault};
-use crate::model::*;
+use dictator_core::model::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {

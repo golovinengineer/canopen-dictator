@@ -1,10 +1,13 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Result, anyhow, bail};
-use dictator::{io, project};
+use dictator_core::project;
 
 mod gui;
+mod io;
 
 const USAGE: &str = "\
 dictator - CANopen object dictionary editor

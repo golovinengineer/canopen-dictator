@@ -1,11 +1,14 @@
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Part of the Rust port of CanFestival objdictgen; see lib.rs for copyright.
+
 #![allow(dead_code)]
 use std::path::PathBuf;
 
-use dictator::model::ObjectDictionary;
+use dictator_core::model::ObjectDictionary;
 
 pub fn asset(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("assets/legacy_objdict")
+        .join("../../assets/legacy_objdict")
         .join(name)
 }
 
@@ -15,5 +18,5 @@ pub fn read_asset(name: &str) -> String {
 
 /// The sample project as imported from the CANopenEditor XDD.
 pub fn sample_xdd() -> ObjectDictionary {
-    dictator::xdd::load(&asset("legacy_objdict.xdd")).unwrap()
+    dictator_core::xdd::load(&asset("legacy_objdict.xdd")).unwrap()
 }

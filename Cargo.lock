@@ -947,10 +947,27 @@ name = "dictator"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "dictator-canfestival",
+ "dictator-core",
  "rfd",
- "roxmltree",
  "slint",
  "slint-build",
+]
+
+[[package]]
+name = "dictator-canfestival"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dictator-core",
+]
+
+[[package]]
+name = "dictator-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "roxmltree",
  "toml",
 ]
 

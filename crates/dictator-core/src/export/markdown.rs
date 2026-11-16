@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR Apache-2.0
+
 //! Markdown documentation export, in the layout of CANopenEditor's
 //! "documentation" export so existing documents keep their shape.
 //!
