@@ -11,7 +11,7 @@ CanFestival-compatible C and Markdown docs. See
 | --- | --- | --- |
 | `dictator` (repository root) | GUI and command line | MIT OR Apache-2.0 |
 | `crates/dictator-core` | model, project file, XDD import, EDS and Markdown export | MIT OR Apache-2.0 |
-| `crates/dictator-canfestival` | CanFestival C generator, a port of CanFestival `objdictgen` | LGPL-2.1-or-later |
+| `crates/dictator-canfestival` | CanFestival C generator and `.od` importer, a port of CanFestival `objdictgen` | LGPL-2.1-or-later |
 
 ## Licence
 

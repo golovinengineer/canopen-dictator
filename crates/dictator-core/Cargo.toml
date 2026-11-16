@@ -7,5 +7,5 @@ edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-roxmltree = "0.21.2"
+roxmltree.workspace = true
 toml = "1.2.1"

@@ -14,13 +14,14 @@ dictator - CANopen object dictionary editor
 
 Usage:
   dictator [PROJECT]
-      Open the editor, optionally loading a .objdict.toml project or an .xdd.
+      Open the editor, optionally loading a .objdict.toml project, or
+      importing a CANopenEditor .xdd or a CanFestival .od.
 
   dictator export PROJECT [--c FILE.c] [--eds FILE.eds] [--md FILE.md]
       Generate CanFestival C (+ .h next to it), EDS and Markdown docs.
 
-  dictator import FILE.xdd OUT.objdict.toml
-      Convert a CANopenEditor XDD into a native project file.
+  dictator import FILE.xdd|FILE.od OUT.objdict.toml
+      Convert a CANopenEditor XDD or a CanFestival .od into a project file.
 ";
 
 fn export(args: &[String]) -> Result<()> {
@@ -42,7 +43,7 @@ fn export(args: &[String]) -> Result<()> {
     if outputs.is_empty() {
         bail!("export needs at least one of --c, --eds, --md");
     }
-    let od = io::open(&input)?;
+    let od = open(&input)?;
     let project_name = input.file_name().and_then(|n| n.to_str()).unwrap_or_default();
     for (kind, path) in outputs {
         match kind.as_str() {
@@ -55,11 +56,20 @@ fn export(args: &[String]) -> Result<()> {
     Ok(())
 }
 
+/// `io::open`, printing import warnings to stderr.
+fn open(path: &Path) -> Result<dictator_core::model::ObjectDictionary> {
+    let (od, warnings) = io::open(path)?;
+    for w in warnings {
+        eprintln!("warning: {w}");
+    }
+    Ok(od)
+}
+
 fn import(args: &[String]) -> Result<()> {
     let [input, output] = args else {
-        bail!("import needs an input .xdd and an output .objdict.toml");
+        bail!("import needs an input .xdd or .od and an output .objdict.toml");
     };
-    let od = io::open(Path::new(input))?;
+    let od = open(Path::new(input))?;
     project::save(&od, Path::new(output))?;
     println!("wrote {output}");
     Ok(())

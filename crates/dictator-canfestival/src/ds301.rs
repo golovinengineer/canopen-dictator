@@ -45,6 +45,8 @@ pub struct SubInfo {
     /// Number of consecutive subindexes this description covers.
     pub nbmax: Option<u32>,
     pub default: Default,
+    /// May be mapped into a PDO.
+    pub pdo: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -59,13 +61,17 @@ pub struct EntryInfo {
 }
 
 const fn s(name: &'static str, ty: u16, access: &'static str) -> SubInfo {
-    SubInfo { name, ty, access, nbmax: None, default: Default::Type }
+    SubInfo { name, ty, access, nbmax: None, default: Default::Type, pdo: false }
 }
 const fn sn(name: &'static str, ty: u16, access: &'static str, nbmax: u32) -> SubInfo {
-    SubInfo { name, ty, access, nbmax: Some(nbmax), default: Default::Type }
+    SubInfo { name, ty, access, nbmax: Some(nbmax), default: Default::Type, pdo: false }
 }
 const fn sd(name: &'static str, ty: u16, access: &'static str, default: Default) -> SubInfo {
-    SubInfo { name, ty, access, nbmax: None, default }
+    SubInfo { name, ty, access, nbmax: None, default, pdo: false }
+}
+/// PDO-mappable.
+const fn sp(name: &'static str, ty: u16, access: &'static str) -> SubInfo {
+    SubInfo { name, ty, access, nbmax: None, default: Default::Type, pdo: true }
 }
 const fn e(index: u16, name: &'static str, structure: u8, subs: &'static [SubInfo]) -> EntryInfo {
     EntryInfo { index, name, structure, callback: false, nbmax: 1, subs }
@@ -100,8 +106,8 @@ const PDO_PARAM_TX: &[SubInfo] = &[
 
 pub const MAPPING: &[EntryInfo] = &[
     e(0x1000, "Device Type", VAR, &[s("Device Type", 0x07, "ro")]),
-    e(0x1001, "Error Register", VAR, &[s("Error Register", 0x05, "ro")]),
-    e(0x1002, "Manufacturer Status Register", VAR, &[s("Manufacturer Status Register", 0x07, "ro")]),
+    e(0x1001, "Error Register", VAR, &[sp("Error Register", 0x05, "ro")]),
+    e(0x1002, "Manufacturer Status Register", VAR, &[sp("Manufacturer Status Register", 0x07, "ro")]),
     cb(e(0x1003, "Pre-defined Error Field", REC, &[
         s("Number of Errors", 0x05, "rw"),
         sn("Standard Error Field", 0x07, "ro", 0xFE),
@@ -129,7 +135,7 @@ pub const MAPPING: &[EntryInfo] = &[
         sn("Restore Manufacturer Defined Default Parameters %d[(sub - 3)]", 0x07, "rw", 0x7C),
     ]),
     e(0x1012, "TIME COB ID", VAR, &[s("TIME COB ID", 0x07, "rw")]),
-    e(0x1013, "High Resolution Timestamp", VAR, &[s("High Resolution Time Stamp", 0x07, "rw")]),
+    e(0x1013, "High Resolution Timestamp", VAR, &[sp("High Resolution Time Stamp", 0x07, "rw")]),
     e(0x1014, "Emergency COB ID", VAR, &[sd("Emergency COB ID", 0x07, "rw", Default::NodeId(0x80))]),
     e(0x1015, "Inhibit Time Emergency", VAR, &[s("Inhibit Time Emergency", 0x06, "rw")]),
     e(0x1016, "Consumer Heartbeat Time", REC, &[
@@ -165,9 +171,9 @@ pub const MAPPING: &[EntryInfo] = &[
     ]),
     e(0x1026, "OS Prompt", ARRAY, &[
         s("Number of Entries", 0x05, "ro"),
-        s("StdIn", 0x05, "wo"),
-        s("StdOut", 0x05, "ro"),
-        s("StdErr", 0x05, "ro"),
+        sp("StdIn", 0x05, "wo"),
+        sp("StdOut", 0x05, "ro"),
+        sp("StdErr", 0x05, "ro"),
     ]),
     e(0x1027, "Module List", REC, &[
         s("Number of Connected Modules", 0x05, "ro"),
@@ -232,13 +238,8 @@ pub fn format_name(template: &str, idx: u32, sub: i64) -> String {
         return template.to_string();
     }
     let (text, args) = (&template[..open], &template[open + 1..template.len() - 1]);
-    let args = args.trim_matches(|c| c == '(' || c == ')');
-    let mut values = args.split(',').map(|a| match a.trim() {
-        "idx" => idx as i64,
-        "sub" => sub,
-        "sub - 3" => sub - 3,
-        _ => 0,
-    });
+    let args = args.strip_prefix('(').and_then(|a| a.strip_suffix(')')).unwrap_or(args);
+    let mut values = args.split(',').map(|a| eval_expr(a, idx as i64, sub).unwrap_or(0));
     let mut out = String::new();
     let mut rest = text;
     while let Some(pos) = rest.find("%d") {
@@ -248,6 +249,86 @@ pub fn format_name(template: &str, idx: u32, sub: i64) -> String {
     }
     out.push_str(rest);
     out
+}
+
+/// Evaluate the arithmetic in a name template: integers, `idx`, `sub`,
+/// `+ - * /` and parentheses (Python evaluates it with `eval`).
+fn eval_expr(text: &str, idx: i64, sub: i64) -> Option<i64> {
+    struct P<'a> {
+        s: &'a [u8],
+        pos: usize,
+        idx: i64,
+        sub: i64,
+    }
+    impl P<'_> {
+        fn skip(&mut self) {
+            while self.s.get(self.pos).is_some_and(|c| c.is_ascii_whitespace()) {
+                self.pos += 1;
+            }
+        }
+        fn peek(&mut self) -> Option<u8> {
+            self.skip();
+            self.s.get(self.pos).copied()
+        }
+        fn expr(&mut self) -> Option<i64> {
+            let mut v = self.term()?;
+            while let Some(op @ (b'+' | b'-')) = self.peek() {
+                self.pos += 1;
+                let r = self.term()?;
+                v = if op == b'+' { v + r } else { v - r };
+            }
+            Some(v)
+        }
+        fn term(&mut self) -> Option<i64> {
+            let mut v = self.factor()?;
+            while let Some(op @ (b'*' | b'/')) = self.peek() {
+                self.pos += 1;
+                let r = self.factor()?;
+                v = if op == b'*' { v * r } else { v.checked_div(r)? };
+            }
+            Some(v)
+        }
+        fn factor(&mut self) -> Option<i64> {
+            match self.peek()? {
+                b'(' => {
+                    self.pos += 1;
+                    let v = self.expr()?;
+                    (self.peek()? == b')').then(|| self.pos += 1)?;
+                    Some(v)
+                }
+                b'-' => {
+                    self.pos += 1;
+                    Some(-self.factor()?)
+                }
+                c if c.is_ascii_digit() => {
+                    let start = self.pos;
+                    while self.s.get(self.pos).is_some_and(|c| c.is_ascii_alphanumeric()) {
+                        self.pos += 1;
+                    }
+                    let t = std::str::from_utf8(&self.s[start..self.pos]).ok()?;
+                    match t.strip_prefix("0x").or_else(|| t.strip_prefix("0X")) {
+                        Some(h) => i64::from_str_radix(h, 16).ok(),
+                        None => t.parse().ok(),
+                    }
+                }
+                _ => {
+                    let rest = &self.s[self.pos..];
+                    let (v, n) = if rest.starts_with(b"idx") {
+                        (self.idx, 3)
+                    } else if rest.starts_with(b"sub") {
+                        (self.sub, 3)
+                    } else {
+                        return None;
+                    };
+                    self.pos += n;
+                    Some(v)
+                }
+            }
+        }
+    }
+    let mut p = P { s: text.as_bytes(), pos: 0, idx, sub };
+    let v = p.expr()?;
+    (p.peek().is_none()).then_some(v)
 }
 
 /// `FindEntryName` with the index number filled in.
@@ -310,5 +391,12 @@ mod tests {
         assert!(find(0x1021).is_none());
         assert_eq!(find(0x1200).unwrap().index, 0x1200);
         assert_eq!(find(0x1201).unwrap().index, 0x1201);
+    }
+
+    #[test]
+    fn name_expressions() {
+        assert_eq!(format_name("Out %d[(sub - 1)]", 1, 5), "Out 4");
+        assert_eq!(format_name("Ch %d.%d[(idx*2, sub+0x10)]", 3, 1), "Ch 6.17");
+        assert_eq!(format_name("Plain", 1, 1), "Plain");
     }
 }

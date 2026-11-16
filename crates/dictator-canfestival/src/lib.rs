@@ -14,7 +14,7 @@
 // or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public
 // License for more details.
 
-//! CanFestival-compatible C code generation.
+//! CanFestival-compatible C code generation and `.od` project import.
 //!
 //! This is a port of CanFestival's `objdictgen` (`node.py`, `eds_utils.py`,
 //! `gen_cfile.py`; LGPL-2.1-or-later, E. Tisserant, F. Dupin, L. Bessard),
@@ -29,3 +29,4 @@
 pub mod ds301;
 pub mod gen_c;
 pub mod node;
+pub mod od;

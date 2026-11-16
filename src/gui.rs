@@ -592,12 +592,19 @@ impl Gui {
     }
 
     fn open_path(&self, path: &Path) -> Result<()> {
-        let od = io::open(path)?;
+        let (od, warnings) = io::open(path)?;
         let count = od.objects.len();
-        if io::is_xdd(path) {
+        if io::is_import(path) {
             // An import becomes an unsaved project; Save asks for a TOML path.
             self.load(od, None, true);
-            self.status(format!("Imported {count} objects from {}; save to create a project file", path.display()));
+            let mut msg = format!(
+                "Imported {count} objects from {}; save to create a project file",
+                path.display()
+            );
+            if !warnings.is_empty() {
+                msg += &format!(" ({} warnings: {})", warnings.len(), warnings.join("; "));
+            }
+            self.status(msg);
         } else {
             self.load(od, Some(path.to_path_buf()), false);
             self.status(format!("Opened {} ({count} objects)", path.display()));
@@ -622,7 +629,7 @@ impl Gui {
         }
         let picked = self
             .dialog()
-            .add_filter("Object dictionary", &["toml", "xdd", "xdc"])
+            .add_filter("Object dictionary", &["toml", "xdd", "xdc", "od"])
             .pick_file();
         match picked {
             Some(path) => self.open_path(&path),

@@ -34,9 +34,10 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
 | XDD import (CANopenEditor 4.x flavour) | `crates/dictator-core/src/xdd.rs` | `crates/dictator-core/tests/project.rs` |
 | TOML project load/save | `crates/dictator-core/src/project.rs` | `crates/dictator-core/tests/project.rs` (lossless, stable, escaping, checked-in sample) |
 | EDS export, CANopenEditor layout | `crates/dictator-core/src/export/eds.rs` | `crates/dictator-core/tests/eds.rs`: equal to sample except the two `Modification*` lines |
+| CanFestival `.od` import | `crates/dictator-canfestival/src/od.rs` | `crates/dictator-canfestival/tests/od_import.rs`: C generated from the imported `ObjDict.od` is token-identical to the sample; project-file round trip is lossless |
 | CanFestival C/H export | `crates/dictator-canfestival/` | `crates/dictator-canfestival/tests/canfestival.rs`: token-identical to the sample (it is clang-formatted, so whitespace is ignored) |
 | Markdown docs export, CANopenEditor layout | `crates/dictator-core/src/export/markdown.rs` | `crates/dictator-core/tests/markdown.rs`: equal except tool/project/modified lines |
-| Command line `export` / `import` | `src/main.rs`, `src/io.rs` | run by hand |
+| Command line `export` / `import` (`.xdd`, `.od`) | `src/main.rs`, `src/io.rs` | run by hand |
 | GUI: open/save, import XDD, filter, add/delete/renumber object, change kind, add/remove subindex, edit fields, device + generator settings, exports | `ui/main.slint`, `src/gui.rs` | layout checked from a `slint-viewer` screenshot; app start checked; **editing actions not yet exercised by hand or by tests** |
 
 ### Backlog, grouped as candidate threads
@@ -62,7 +63,7 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
      RPDO/TPDO pair) with correct defaults; clone / renumber ranges
 5. **Importers / exporters**
    - XDD export (so a project can go back to CANopenEditor)
-   - EDS import, CanFestival `.od` import, DCF export
+   - EDS import, DCF export
    - EDS: LSS / boot-up flags, `CompactSubObj`, `ObjFlags`
 6. **C generator completeness** (all marked `TODO` in `crates/dictator-canfestival/`)
    - user value-range types (indexes 0x0001-0x0260) and `valueRangeTest` cases
@@ -113,6 +114,24 @@ Each object is joined from `CANopenObjectList` and `parameterList` via
 `uniqueIDRef`. A parameter has either a `<description>` or a `<label>`; the
 label only repeats the name and is ignored. `BITSTRING` is imported as
 OCTET_STRING because CANopenEditor writes DOMAIN the same way.
+
+### `.od` import
+
+An `.od` is CanFestival's `node.Node` saved with `gnosis.xml.pickle`
+(`od.rs` has a small reader for it, including `refid` back-references).
+Names, types and access come from the file's `Profile` / `DS302` /
+`UserMapping` tables, then from the DS-301 table, in that order, as in
+`node.py`. Things to know:
+
+- the node id in the file is ignored (objdictedit resets it to 0 on open);
+- CanFestival's PDO flag is a bool, so mappable subs become `optional`;
+- a VAR's sub name is replaced by the entry name (the project file keeps one
+  name per VAR; differs for 0x1006 in the DS-301 table);
+- per-entry `buffer_size` is dropped with a warning; user value-range types
+  (0x00A0+) and 24/40/48/56-bit or TIME types fail the import, same gaps as
+  the C generator;
+- objects that were disabled in the XDD never reached the `.od`, so an `.od`
+  import of the sample has 12 fewer objects than the XDD import.
 
 ### Testing
 

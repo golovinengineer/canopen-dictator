@@ -10,18 +10,28 @@ use dictator_canfestival as canfestival;
 use dictator_core::model::ObjectDictionary;
 use dictator_core::{export, project, xdd};
 
-pub fn is_xdd(path: &Path) -> bool {
+/// File extensions (lowercase) that are imported rather than opened.
+pub const IMPORT_EXTENSIONS: [&str; 4] = ["xdd", "xdc", "xpd", "od"];
+
+fn extension(path: &Path) -> String {
     path.extension()
         .and_then(|e| e.to_str())
-        .is_some_and(|e| matches!(e.to_ascii_lowercase().as_str(), "xdd" | "xdc" | "xpd"))
+        .map(str::to_ascii_lowercase)
+        .unwrap_or_default()
 }
 
-/// Open a native project or import an XDD, by file extension.
-pub fn open(path: &Path) -> Result<ObjectDictionary> {
-    if is_xdd(path) {
-        xdd::load(path)
-    } else {
-        project::load(path)
+/// XDD or CanFestival `.od`: becomes a new, unsaved project.
+pub fn is_import(path: &Path) -> bool {
+    IMPORT_EXTENSIONS.contains(&extension(path).as_str())
+}
+
+/// Open a native project or import an XDD / `.od`, by file extension.
+/// Also returns what an import could not carry over.
+pub fn open(path: &Path) -> Result<(ObjectDictionary, Vec<String>)> {
+    match extension(path).as_str() {
+        "od" => canfestival::od::load(path).map(|i| (i.od, i.warnings)),
+        "xdd" | "xdc" | "xpd" => Ok((xdd::load(path)?, Vec::new())),
+        _ => Ok((project::load(path)?, Vec::new())),
     }
 }
 
