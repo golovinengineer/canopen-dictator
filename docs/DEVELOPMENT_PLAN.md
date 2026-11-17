@@ -39,7 +39,10 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
 | CanFestival C/H export | `crates/dictator-canfestival/` | `crates/dictator-canfestival/tests/canfestival.rs`: token-identical to gen_cfile's `ObjDict.c/.h` (whitespace ignored; two gen_cfile bugs undone, see below) |
 | Markdown docs export, CANopenEditor layout | `crates/dictator-core/src/export/markdown.rs` | `crates/dictator-core/tests/markdown.rs`: equal to CANopenEditor's `example.md` except tool/project/modified lines |
 | Command line `export` (`--c`, `--od`, `--eds`, `--md`) / `import` (`.xdd`, `.od`) | `src/main.rs`, `src/io.rs` | run by hand |
-| GUI: open/save, import XDD / `.od`, filter, add/delete/renumber object, change kind, add/remove subindex, edit fields, device + generator settings, exports | `ui/main.slint`, `src/gui.rs` | layout checked from a `slint-viewer` screenshot; app start checked; **editing actions not yet exercised by hand or by tests** |
+| Editing session shared by the front ends: selection, filter, add/delete/renumber object, change kind, add/remove subindex, field edits, settings, validation, dirty tracking | `crates/dictator-core/src/editor.rs` | `crates/dictator-core/tests/editor.rs` |
+| GUI: open/save, import XDD / `.od`, filter, add/delete/renumber object, change kind, add/remove subindex, edit fields, device + generator settings, exports | `ui/main.slint`, `src/gui.rs` (on `Editor`) | layout checked from a `slint-viewer` screenshot; select, add/remove subindex, callback toggle and delete object clicked through over the Slint MCP server |
+| Terminal UI (Ratatui): the same editing as the GUI, settings screen, open/import with Tab completion, save/save as, exports, unsaved-changes and overwrite prompts | `src/tui/` | input widget unit tests; every action driven by hand in tmux, saved project diffed against the original, EDS export byte-identical to the CLI |
+| Front-end choice: terminal UI when stdin and stdout are a terminal, else the window; `--gui` / `--tui` / `DICTATOR_UI`; cargo features `gui`, `tui` (neither: command line only, for CI); exports create missing output directories | `src/main.rs`, `Cargo.toml` | run by hand |
 
 ### Backlog, grouped as candidate threads
 
@@ -50,9 +53,12 @@ crate with its importer, exporter and C generator:
 `dictator-canopennode` (XDD, CANopenNode C: thread 5).
 
 1. **GUI hardening**
-   - click through every action once; move the editing operations
-     (`change_kind`, `sync_highest_sub`, add/remove sub) from `src/gui.rs`
-     into `dictator-core` and unit-test them
+   - click through the remaining GUI actions once (file dialogs, exports,
+     kind change); the editing operations now live in
+     `dictator-core::editor` and are unit-tested
+   - the GUI accepts a default/min/max that won't export (red outline only);
+     the TUI refuses it. Decide on one behaviour and move the check into
+     `Editor::edit_sub`
    - undo/redo; keyboard shortcuts and a menu bar; remember export targets in
      the project so re-export is one click
    - combo box for node type; multi-line device description
@@ -95,8 +101,62 @@ crate with its importer, exporter and C generator:
    - keep user comments and unknown keys on save (`toml_edit`)
    - format versioning / migration when `format` changes
 9. **Packaging**: app icon, macOS bundle, Windows/Linux builds, CI
+10. **CMake integration** (`cmake/Dictator.cmake`, MIT OR Apache-2.0): make
+    the object dictionary part of an embedded build, generated at build time
+    from the project file, never committed
+    - API, target-based rather than a global include:
+      ```cmake
+      find_package(Dictator REQUIRED)   # or include(cmake/Dictator.cmake)
+      dictator_add_object_dictionary(od
+          PROJECT  ${CMAKE_SOURCE_DIR}/device.objdict.toml   # or .xdd / .od
+          STACK    canfestival                              # canopennode later
+          NAME     ObjDict                                  # file and header name
+          LINK     canfestival)                             # the stack's headers
+      target_link_libraries(firmware PRIVATE od)
+      ```
+      It creates a static library `od` from `${CMAKE_CURRENT_BINARY_DIR}/od/ObjDict.c`.
+      Its include directory is public, so `#include "ObjDict.h"` works in
+      the firmware. The stack's library is linked publicly, because the
+      generated code includes CanFestival's `data.h` / CANopenNode's `OD.h`
+      types
+    - `add_custom_command(OUTPUT ObjDict.c ObjDict.h DEPENDS <project>
+      COMMAND dictator export ...)`: regenerates only when the project file
+      changes; optional `EDS` / `MARKDOWN` arguments for the integrator files
+      (also on a custom target, so `cmake --build . -t od_docs` works)
+    - finding the tool: `DICTATOR_EXECUTABLE` cache variable, else
+      `find_program(dictator)`, else build it from source when Cargo is
+      present (`ExternalProject` running `cargo install --locked
+      --no-default-features`, or Corrosion). Later, download a released
+      binary, which needs thread 9. Dictator always runs on the build host,
+      so cross-compiling firmware (arm-none-eabi toolchain files) makes no
+      difference
+    - imports work as inputs already (`dictator export` opens `.xdd` / `.od`
+      through `io::open`), but their warnings should fail the build or at
+      least print; add `export --strict` (warnings become errors)
+    - ship a `DictatorConfig.cmake` for `find_package`, installed next to
+      the binary, plus the plain `include()` file for vendoring
+    - test: a minimal CMake project under `tests/cmake/` that builds the
+      example's generated C against CanFestival's headers (host compiler is
+      enough), run in CI; check that touching the project file regenerates
+      and touching nothing doesn't
+    - README: replace the hand-written CI step with this for CMake users;
+      a pure-CMake build then needs no YAML of its own
+    - blocked on nothing; CANopenNode output (thread 5) adds a second
+      `STACK` value. Estimate: about a day with the test project
 
 ## Notes for whoever picks this up
+
+### Two front ends, one editing session
+
+`dictator_core::editor::Editor` owns the dictionary, the file path, the
+saved copy (for dirty tracking), the selection and the filter. Both
+`src/gui.rs` and `src/tui/` call it with the same string field keys and
+text values; put new editing behaviour there, not in a front end, so both
+get it. Front ends keep only presentation: Slint models and `rfd` dialogs in
+the GUI; focus, inline inputs, prompts and popups in the TUI. Both run in
+one process: there is no client/server split, since nothing needs to be
+shared between processes. During GUI work use `cargo run -- --gui`, as a
+plain `cargo run` from a terminal now opens the TUI.
 
 ### Project file format
 

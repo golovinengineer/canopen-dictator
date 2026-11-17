@@ -4,6 +4,7 @@ use std::path::Path;
 
 fn main() {
     // slint-project.json names the main file and the Slint edition.
+    #[cfg(feature = "gui")]
     slint_build::compile(".").expect("Slint build failed");
 
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
