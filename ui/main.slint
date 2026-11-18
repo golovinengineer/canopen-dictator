@@ -215,12 +215,25 @@ component AboutDialog inherits PopupWindow {
         VerticalLayout {
             padding: 2 * Ui.gap;
             spacing: Ui.gap;
-            Heading {
-                text: "Dictator " + App.version;
-            }
+            HorizontalLayout {
+                spacing: Ui.gap * 1.5;
+                alignment: start;
+                Image {
+                    source: Palette.color-scheme == ColorScheme.dark ? @image-url("../assets/icon/png/dictator-dark-256.png") : @image-url("../assets/icon/png/dictator-256.png");
+                    width: 96px;
+                    height: 96px;
+                }
 
-            Text {
-                text: "CANopen object dictionary editor";
+                VerticalLayout {
+                    alignment: center;
+                    Heading {
+                        text: "Dictator " + App.version;
+                    }
+
+                    Text {
+                        text: "CANopen object dictionary editor";
+                    }
+                }
             }
 
             Caption {
@@ -229,7 +242,7 @@ component AboutDialog inherits PopupWindow {
             }
 
             AboutSlint {
-                preferred-height: 180px;
+                preferred-height: 96px;
             }
         }
     }
@@ -868,6 +881,7 @@ component Panes inherits Rectangle {
 
 export component MainWindow inherits Window {
     title: (App.dirty ? "● " : "") + App.file-label + " - Dictator";
+    icon: @image-url("../assets/icon/png/dictator-256.png");
     preferred-width: 1320px;
     preferred-height: 780px;
     // The minimum width comes from the panes.

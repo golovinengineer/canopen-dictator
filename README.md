@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/icon/banner-dark.png">
+    <img src="assets/icon/banner.png" alt="Dictator, CANopen object dictionary editor" width="495">
+  </picture>
+</p>
+
 # Dictator
 
 A cross-platform CANopen object dictionary editor. You edit the dictionary
