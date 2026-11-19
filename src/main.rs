@@ -91,7 +91,9 @@ fn import(args: &[String]) -> Result<()> {
         bail!("import needs an input .xdd or .od and an output .objdict.toml");
     };
     let od = open(Path::new(input))?;
-    project::save(&od, Path::new(output))?;
+    let output_path = Path::new(output);
+    io::create_parent(output_path)?;
+    project::save(&od, output_path)?;
     println!("wrote {output}");
     Ok(())
 }

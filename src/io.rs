@@ -60,12 +60,18 @@ fn file_name(path: &Path) -> Result<String> {
         .ok_or_else(|| anyhow!("{} has no file name", path.display()))
 }
 
-/// Write an export, creating missing parent directories (CI jobs export
-/// into a fresh `generated/`).
-fn write(path: &Path, text: String) -> Result<()> {
+/// Create the directories `path` will be written into, if missing (CI jobs
+/// export into a fresh `generated/`).
+pub fn create_parent(path: &Path) -> Result<()> {
     if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
         std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
     }
+    Ok(())
+}
+
+/// Write an export, creating missing parent directories.
+fn write(path: &Path, text: String) -> Result<()> {
+    create_parent(path)?;
     std::fs::write(path, text).with_context(|| format!("writing {}", path.display()))
 }
 
