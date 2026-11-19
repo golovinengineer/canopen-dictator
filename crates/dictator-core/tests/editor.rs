@@ -197,19 +197,48 @@ fn type_change_keeps_values_that_no_longer_fit() {
     e.select_object(Some(0x1000));
     e.select_sub(Some(0));
     e.edit_sub("default", "300").unwrap();
-    assert_eq!(e.value_mismatch(), None);
+    assert_eq!(e.value_problem(), None);
 
     e.edit_sub("type", "UNSIGNED8").unwrap();
     assert_eq!(e.selected_sub_object().unwrap().default, "300");
-    assert_eq!(e.value_mismatch().as_deref(), Some("Default 300 does not fit UNSIGNED8; fix it before exporting"));
+    assert_eq!(e.value_problem().as_deref(), Some("Default 300 does not fit UNSIGNED8; fix it before exporting"));
 
     e.edit_sub("max", "255").unwrap();
     e.edit_sub("type", "INTEGER8").unwrap();
     assert_eq!(
-        e.value_mismatch().as_deref(),
+        e.value_problem().as_deref(),
         Some("Default 300, maximum 255 do not fit INTEGER8; fix them before exporting")
     );
 
+    // Both fit UNSIGNED16, which leaves the default above the maximum.
     e.edit_sub("type", "UNSIGNED16").unwrap();
-    assert_eq!(e.value_mismatch(), None);
+    assert_eq!(e.value_problem().as_deref(), Some("Default 300 is above the maximum 255; fix it before exporting"));
+}
+
+#[test]
+fn default_outside_limits_is_kept_and_reported() {
+    let mut e = fresh();
+    e.select_object(Some(0x1000));
+    e.select_sub(Some(0));
+    e.edit_sub("default", "50").unwrap();
+    // Moving the range up past the default: each step is taken.
+    e.edit_sub("max", "100").unwrap();
+    e.edit_sub("min", "60").unwrap();
+    let s = e.selected_sub_object().unwrap();
+    assert_eq!((s.default.as_str(), s.min.as_str(), s.max.as_str()), ("50", "60", "100"));
+    assert_eq!(e.value_problem().as_deref(), Some("Default 50 is below the minimum 60; fix it before exporting"));
+    assert!(!e.value_field_ok("default", "50"));
+    assert!(e.value_field_ok("default", "70"));
+    assert!(e.value_field_ok("min", "60"));
+    // A minimum above the maximum is the minimum's fault.
+    assert!(!e.value_field_ok("min", "200"));
+    assert!(e.value_field_ok("max", "50"));
+
+    e.edit_sub("default", "70").unwrap();
+    assert_eq!(e.value_problem(), None);
+
+    // Type problems come first; limits aren't judged on values that don't fit.
+    e.edit_sub("max", "300").unwrap();
+    e.edit_sub("type", "UNSIGNED8").unwrap();
+    assert_eq!(e.value_problem().as_deref(), Some("Maximum 300 does not fit UNSIGNED8; fix it before exporting"));
 }

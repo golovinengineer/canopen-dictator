@@ -71,6 +71,20 @@ pub fn value_ok(text: &str, t: DataType) -> bool {
     check_value(text, t).is_ok()
 }
 
+/// Whether the `default`, `min` or `max` field (`key`) of a subindex with
+/// these values will export: it fits type `t`, and the default is inside
+/// the limits / the minimum is not above the maximum ([`check_limits`]).
+/// The GUI calls it with the texts as typed.
+pub fn value_field_ok(key: &str, default: &str, min: &str, max: &str, t: DataType) -> bool {
+    let (text, blamed) = match key {
+        "default" => (default, "default"),
+        "min" => (min, "minimum"),
+        "max" => (max, ""),
+        _ => return true,
+    };
+    check_value(text, t).is_ok() && !check_limits(default, min, max, t).iter().any(|(field, _)| *field == blamed)
+}
+
 /// How a value field is called in messages.
 fn value_label(key: &str) -> &'static str {
     match key {
@@ -344,7 +358,9 @@ impl Editor {
     /// A default, minimum or maximum that won't export (see
     /// [`check_value`]) is refused and the field keeps its value. A type
     /// change is always taken, even when the values no longer fit the new
-    /// type; [`Editor::value_mismatch`] says which ones.
+    /// type, and so is a default outside the limits (refusing it would make
+    /// moving a range depend on the order of the edits);
+    /// [`Editor::value_problem`] says what is wrong.
     pub fn edit_sub(&mut self, key: &str, value: &str) -> Result<()> {
         let pos = self.selected_sub.ok_or_else(|| anyhow!("no subindex selected"))?;
         self.with_object(|o| {
@@ -380,19 +396,43 @@ impl Editor {
         })
     }
 
-    /// The values of the selected subindex that don't fit its type, such
-    /// as a default of 300 after the type became `UNSIGNED8`; `None` when
-    /// they all fit. Front ends show it after a type change.
-    pub fn value_mismatch(&self) -> Option<String> {
+    /// What is wrong with the default, minimum and maximum of the selected
+    /// subindex, for the status bar; `None` when they will export. Values
+    /// that don't fit the type come first (a default of 300 after the type
+    /// became `UNSIGNED8`), then a default outside the limits. Front ends
+    /// show it after editing the type or one of the values.
+    pub fn value_problem(&self) -> Option<String> {
         let s = self.selected_sub_object()?;
         let bad: Vec<String> = s.bad_values().into_iter().map(|(field, v, _)| format!("{field} {v}")).collect();
-        if bad.is_empty() {
-            return None;
-        }
-        let (verb, it) = if bad.len() == 1 { ("does", "it") } else { ("do", "them") };
-        let what = bad.join(", ");
-        let what = what[..1].to_uppercase() + &what[1..];
-        Some(format!("{what} {verb} not fit {}; fix {it} before exporting", s.data_type.cia_name()))
+        let (what, it) = if !bad.is_empty() {
+            let (verb, it) = if bad.len() == 1 { ("does", "it") } else { ("do", "them") };
+            (format!("{} {verb} not fit {}", bad.join(", "), s.data_type.cia_name()), it)
+        } else {
+            let limits: Vec<String> = s.limit_problems().into_iter().map(|(field, why)| format!("{field} {why}")).collect();
+            if limits.is_empty() {
+                return None;
+            }
+            (limits.join(", "), if limits.len() == 1 { "it" } else { "them" })
+        };
+        Some(format!("{}{}; fix {it} before exporting", what[..1].to_uppercase(), &what[1..]))
+    }
+
+    /// Whether `text` in the selected subindex's `default`, `min` or `max`
+    /// field, with the other two as stored, will export; drives the red
+    /// field. Unlike [`Editor::edit_sub`], this also refuses a default
+    /// outside the limits and a minimum above the maximum.
+    pub fn value_field_ok(&self, key: &str, text: &str) -> bool {
+        self.selected_sub_object().is_none_or(|s| {
+            let mut values = [s.default.as_str(), s.min.as_str(), s.max.as_str()];
+            match key {
+                "default" => values[0] = text,
+                "min" => values[1] = text,
+                "max" => values[2] = text,
+                _ => return true,
+            }
+            let [default, min, max] = values;
+            value_field_ok(key, default, min, max, s.data_type)
+        })
     }
 
     /// Add an object and select it. An empty name becomes "New object";

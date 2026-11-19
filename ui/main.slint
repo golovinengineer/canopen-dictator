@@ -114,8 +114,11 @@ export global App {
     // A free hex index from 0x1000; the second argument is the object's
     // current index, or -1 for a new one.
     pure callback index-ok(string, int) -> bool;
-    // A default, minimum or maximum for the type at this position in type-names.
-    pure callback value-ok(string, int) -> bool;
+    // Whether the default, minimum or maximum field (first argument: "default",
+    // "min" or "max") will export, given the default, minimum and maximum
+    // texts and the type at this position in type-names: it fits the type,
+    // the default is inside the limits, the minimum is not above the maximum.
+    pure callback value-ok(string, string, string, string, int) -> bool;
     // A value for the setting with this key.
     pure callback setting-ok(string, string) -> bool;
 }
@@ -730,7 +733,7 @@ component SubInspector inherits VerticalLayout {
     Field {
         label: "Default value";
         Checked {
-            invalid: !App.value-ok(default.text, App.sub-type);
+            invalid: !App.value-ok("default", default.text, min.text, max.text, App.sub-type);
             default := LineEdit {
                 text <=> App.sub-default;
                 font-family: Ui.mono;
@@ -752,7 +755,7 @@ component SubInspector inherits VerticalLayout {
         Field {
             label: "Minimum";
             Checked {
-                invalid: !App.value-ok(min.text, App.sub-type);
+                invalid: !App.value-ok("min", default.text, min.text, max.text, App.sub-type);
                 min := LineEdit {
                     min-width: 140px;
                     text <=> App.sub-min;
@@ -771,7 +774,7 @@ component SubInspector inherits VerticalLayout {
         Field {
             label: "Maximum";
             Checked {
-                invalid: !App.value-ok(max.text, App.sub-type);
+                invalid: !App.value-ok("max", default.text, min.text, max.text, App.sub-type);
                 max := LineEdit {
                     min-width: 140px;
                     text <=> App.sub-max;

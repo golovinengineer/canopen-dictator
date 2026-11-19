@@ -289,6 +289,12 @@ impl SubObject {
             .filter_map(|(field, v)| check_value(v, self.data_type).err().map(|why| (field, v.trim(), why)))
             .collect()
     }
+
+    /// A default outside the minimum/maximum, or a minimum above the
+    /// maximum; see [`check_limits`].
+    pub fn limit_problems(&self) -> Vec<(&'static str, String)> {
+        check_limits(&self.default, &self.min, &self.max, self.data_type)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -455,19 +461,22 @@ impl ObjectDictionary {
 
     /// Every default, minimum and maximum of an enabled object that
     /// [`check_value`] refuses, as `0x1001: default 300 does not fit
-    /// UNSIGNED8` (`0x1018 sub 0x02: ...` for an ARRAY or RECORD). Exports
+    /// UNSIGNED8` (`0x1018 sub 0x02: ...` for an ARRAY or RECORD), and
+    /// every default outside its limits or minimum above its maximum
+    /// ([`check_limits`]). Exports
     /// refuse to run while there are any; imports report them as warnings.
     /// Disabled objects are left out, as they are left out of every export.
     pub fn value_problems(&self) -> Vec<String> {
         let mut problems = Vec::new();
         for (index, obj) in self.enabled() {
             for s in &obj.subs {
-                for (field, _, why) in s.bad_values() {
-                    let at = if obj.kind == ObjectKind::Var {
-                        format!("0x{index:04X}")
-                    } else {
-                        format!("0x{index:04X} sub 0x{:02X}", s.sub)
-                    };
+                let at = if obj.kind == ObjectKind::Var {
+                    format!("0x{index:04X}")
+                } else {
+                    format!("0x{index:04X} sub 0x{:02X}", s.sub)
+                };
+                let type_problems = s.bad_values().into_iter().map(|(field, _, why)| (field, why));
+                for (field, why) in type_problems.chain(s.limit_problems()) {
                     problems.push(format!("{at}: {field} {why}"));
                 }
             }
@@ -521,6 +530,60 @@ pub fn check_value(text: &str, t: DataType) -> Result<(), String> {
         return Err(format!("{text} does not fit {}", t.cia_name()));
     }
     Ok(())
+}
+
+/// Check a default against its minimum and maximum, and the minimum
+/// against the maximum, for values of type `t` that each pass
+/// [`check_value`]. Returns (field, reason) with field `"default"` or
+/// `"minimum"`, e.g. `("default", "300 is above the maximum 255")`.
+/// Only numbers are compared: empty values, strings, domains and
+/// `$NODEID` formulas (their value depends on the node id) are skipped,
+/// and so are values [`check_value`] refuses, which are reported as such.
+pub fn check_limits(default: &str, min: &str, max: &str, t: DataType) -> Vec<(&'static str, String)> {
+    fn compare<T: PartialOrd>(
+        parse: impl Fn(&str) -> Option<T>,
+        [default, min, max]: [&str; 3],
+    ) -> Vec<(&'static str, String)> {
+        let (d, lo, hi) = (parse(default), parse(min), parse(max));
+        if let (Some(lo), Some(hi)) = (&lo, &hi)
+            && lo > hi
+        {
+            // The default can't be judged against a range that is upside down.
+            return vec![("minimum", format!("{min} is above the maximum {max}"))];
+        }
+        let mut problems = Vec::new();
+        if let (Some(d), Some(lo)) = (&d, &lo)
+            && d < lo
+        {
+            problems.push(("default", format!("{default} is below the minimum {min}")));
+        }
+        if let (Some(d), Some(hi)) = (&d, &hi)
+            && d > hi
+        {
+            problems.push(("default", format!("{default} is above the maximum {max}")));
+        }
+        problems
+    }
+    let texts = [default.trim(), min.trim(), max.trim()];
+    let usable = |text: &str| !text.is_empty() && check_value(text, t).is_ok();
+    if t.int_range().is_some() {
+        compare(
+            |text| {
+                let upper = text.to_uppercase();
+                match upper.as_str() {
+                    _ if !usable(text) => None,
+                    "TRUE" => Some(1),
+                    "FALSE" => Some(0),
+                    _ => parse_int(text),
+                }
+            },
+            texts,
+        )
+    } else if matches!(t, DataType::Real32 | DataType::Real64) {
+        compare(|text| usable(text).then(|| text.parse::<f64>().ok()).flatten(), texts)
+    } else {
+        Vec::new()
+    }
 }
 
 /// Current UTC time as `YYYY-MM-DDTHH:MM:SS`.
@@ -585,6 +648,25 @@ mod tests {
         ] {
             assert_eq!(check_value(text, t), Ok(()), "{text:?} as {t:?}");
         }
+    }
+
+    #[test]
+    fn check_limits_compares_numbers_only() {
+        use DataType::*;
+        let none: Vec<(&str, String)> = Vec::new();
+        assert_eq!(check_limits("300", "", "255", U16), [("default", "300 is above the maximum 255".to_string())]);
+        assert_eq!(check_limits("0x05", "10", "", U8), [("default", "0x05 is below the minimum 10".to_string())]);
+        assert_eq!(check_limits("-1.5", "-1", "1", Real32), [("default", "-1.5 is below the minimum -1".to_string())]);
+        // An upside-down range is reported once, without judging the default.
+        assert_eq!(check_limits("7", "10", "5", I16), [("minimum", "10 is above the maximum 5".to_string())]);
+        // Hex, decimal and booleans compare by value.
+        assert_eq!(check_limits("0x10", "16", "0x10", U8), none);
+        assert_eq!(check_limits("TRUE", "0", "1", Boolean), none);
+        // Skipped: unset limits, $NODEID formulas, strings, values that don't fit the type.
+        assert_eq!(check_limits("300", "", "", U16), none);
+        assert_eq!(check_limits("$NODEID+0x180", "0", "0x100", U32), none);
+        assert_eq!(check_limits("zz", "a", "b", VisibleString), none);
+        assert_eq!(check_limits("300", "0", "10", U8), none);
     }
 
     #[test]

@@ -153,7 +153,7 @@ fn draw_fields(f: &mut Frame, app: &App, area: Rect, fields: &[Field], cursor: O
             _ => None,
         };
         let value = if let Some((target, input)) = editing {
-            let ok = app.input_ok(target, input.text());
+            let ok = app.field_ok(target, input.text());
             let (text, col) = input.view(value_width.saturating_sub(1));
             f.set_cursor_position(Position::new(area.x + label_width + col as u16, area.y + (i - offset) as u16));
             let style = if ok { Style::new().add_modifier(Modifier::UNDERLINED) } else { Style::new().fg(ERROR).add_modifier(Modifier::UNDERLINED) };
@@ -168,7 +168,7 @@ fn draw_fields(f: &mut Frame, app: &App, area: Rect, fields: &[Field], cursor: O
                 style = style.fg(MUTED);
             }
             // A stored value that won't export, e.g. from a hand-edited file.
-            if !app.input_ok(&make(field.key), &field.value) {
+            if !app.field_ok(&make(field.key), &field.value) {
                 style = style.fg(ERROR);
             }
             if selected {

@@ -130,6 +130,12 @@ fn value_problems_name_each_value_that_wont_export() {
         ]
     );
 
+    // A default outside the limits, after the type problems of the same sub.
+    let identity = od.objects.get_mut(&0x1018).unwrap();
+    identity.subs[2].min = "0x100".into();
+    identity.subs[2].default = "0x10".into();
+    assert_eq!(od.value_problems()[2], "0x1018 sub 0x02: default 0x10 is below the minimum 0x100");
+
     // Disabled objects are left out of exports, and so out of the check.
     od.objects.get_mut(&0x1018).unwrap().disabled = true;
     assert_eq!(od.value_problems(), ["0x1001: default 300 does not fit UNSIGNED8"]);

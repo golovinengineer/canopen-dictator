@@ -328,6 +328,24 @@ impl App {
         }
     }
 
+    /// Whether `text` in `target` will export; drives the red field. Wider
+    /// than `input_ok`: a default outside the limits is accepted on Enter
+    /// (so a range can be moved in any order) but still shown in red.
+    pub fn field_ok(&self, target: &Target, text: &str) -> bool {
+        match target {
+            Target::Sub(key @ ("default" | "min" | "max")) => self.ed.value_field_ok(key, text),
+            _ => self.input_ok(target, text),
+        }
+    }
+
+    /// Put what's wrong with the selected subindex's values in the status
+    /// bar, after an edit that may have made them wrong.
+    fn report_value_problem(&mut self) {
+        if let Some(problem) = self.ed.value_problem() {
+            self.error(problem);
+        }
+    }
+
     /// Why `input_ok` refuses `text`.
     fn input_problem(&self, target: &Target, text: &str) -> String {
         match target {
@@ -775,6 +793,9 @@ impl App {
             KeyCode::Enter => match self.apply(&target, input.text()) {
                 Ok(()) => {
                     self.info("");
+                    if matches!(target, Target::Sub("default" | "min" | "max")) {
+                        self.report_value_problem();
+                    }
                     Mode::Normal
                 }
                 Err(e) => {
@@ -802,8 +823,8 @@ impl App {
                 let type_changed = result.is_ok() && matches!(target, Target::Sub("type"));
                 self.report(result);
                 // Values that no longer fit the new type turn red; say why.
-                if let Some(problem) = self.ed.value_mismatch().filter(|_| type_changed) {
-                    self.error(problem);
+                if type_changed {
+                    self.report_value_problem();
                 }
                 return Mode::Normal;
             }

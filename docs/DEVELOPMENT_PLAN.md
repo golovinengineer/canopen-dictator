@@ -39,7 +39,7 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
 | CanFestival C/H export | `crates/dictator-canfestival/` | `crates/dictator-canfestival/tests/canfestival.rs`: token-identical to gen_cfile's `ObjDict.c/.h` (whitespace ignored; two gen_cfile bugs undone, see below) |
 | Markdown docs export, CANopenEditor layout | `crates/dictator-core/src/export/markdown.rs` | `crates/dictator-core/tests/markdown.rs`: equal to CANopenEditor's `example.md` except tool/project/modified lines |
 | Command line `export` (`--c`, `--od`, `--eds`, `--md`) / `import` (`.xdd`, `.od`) | `src/main.rs`, `src/io.rs` | run by hand |
-| Values that don't fit their type (default/min/max of enabled objects, `ObjectDictionary::value_problems`): every export refuses them and writes nothing; opening or importing any file lists them as warnings and keeps them for fixing | `crates/dictator-core/src/model.rs`, `src/io.rs` | `crates/dictator-core/tests/project.rs`, `src/io.rs` tests; CLI and TUI run by hand |
+| Values that won't export (default/min/max of enabled objects that don't fit their type, a default outside min/max, min above max: `ObjectDictionary::value_problems`): every export refuses them and writes nothing; opening or importing any file lists them as warnings and keeps them for fixing. The editor refuses a value that doesn't fit the type but takes one outside the limits (moving a range must not depend on edit order), showing it red with a status message | `crates/dictator-core/src/model.rs`, `src/io.rs` | `crates/dictator-core/tests/project.rs`, `src/io.rs` tests; CLI and TUI run by hand |
 | Editing session shared by the front ends: selection, filter, add/delete/renumber object, change kind, add/remove subindex, field edits, settings, validation, dirty tracking. `edit_sub` refuses a default/min/max that won't export; a type change is kept and `value_mismatch` names the values that no longer fit (red field + status message in both front ends) | `crates/dictator-core/src/editor.rs` | `crates/dictator-core/tests/editor.rs` |
 | GUI: open/save, import XDD / `.od`, filter, add/delete/renumber object, change kind, add/remove subindex, edit fields, device + generator settings, exports | `ui/main.slint`, `src/gui.rs` (on `Editor`) | layout checked from a `slint-viewer` screenshot; select, add/remove subindex, callback toggle and delete object clicked through over the Slint MCP server |
 | Terminal UI (Ratatui): the same editing as the GUI, settings screen, open/import with Tab completion, save/save as, exports, unsaved-changes and overwrite prompts | `src/tui/` | input widget unit tests; every action driven by hand in tmux, saved project diffed against the original, EDS export byte-identical to the CLI |
@@ -64,8 +64,7 @@ crate with its importer, exporter and C generator:
      `string_length_min`): in the model and project file, not yet in the GUI
 2. **Validation**
    - panel listing problems before export: duplicate C names after
-     `format_name`, defaults outside min/max (type range is already
-     checked: `value_problems`), PDO mappings that
+     `format_name`, PDO mappings that
      point at missing/unmappable objects, sub 0 inconsistent with subs,
      project kind conflicting with CanFestival's DS-301 table (currently an
      export error)

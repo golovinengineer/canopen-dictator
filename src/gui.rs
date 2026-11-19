@@ -282,10 +282,13 @@ impl Gui {
         self.editor.borrow_mut().edit_sub(key, value)?;
         self.update_sub_row();
         self.refresh_dirty();
-        let mismatch = if key == "type" { self.editor.borrow().value_mismatch() } else { None };
-        match mismatch {
-            // The outline of the values that no longer fit follows the type
-            // by itself; say why it turned red.
+        let problem = match key {
+            "type" | "default" | "min" | "max" => self.editor.borrow().value_problem(),
+            _ => None,
+        };
+        match problem {
+            // The outline of a value that won't export follows the texts and
+            // the type by itself; say why it turned red.
             Some(problem) => self.error(problem),
             None if self.app().get_status_is_error() => self.status(""),
             None => {}
@@ -574,9 +577,9 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
     app.on_index_ok(move |text, current| {
         weak.upgrade().is_none_or(|g| g.editor.borrow().index_ok(&text, u16::try_from(current).ok()))
     });
-    app.on_value_ok(|text, type_index| {
+    app.on_value_ok(|key, default, min, max, type_index| {
         let t = usize::try_from(type_index).ok().and_then(|i| DataType::ALL.get(i).copied());
-        t.is_none_or(|t| editor::value_ok(&text, t))
+        t.is_none_or(|t| editor::value_field_ok(&key, &default, &min, &max, t))
     });
     let weak = Rc::downgrade(&gui);
     app.on_setting_ok(move |key, value| weak.upgrade().is_none_or(|g| g.editor.borrow().setting_ok(&key, &value)));
