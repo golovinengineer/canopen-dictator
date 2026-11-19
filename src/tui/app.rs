@@ -799,7 +799,12 @@ impl App {
             KeyCode::Enter => {
                 let Some(value) = options.get(cursor) else { return Mode::Normal };
                 let result = self.apply(&target, value);
+                let type_changed = result.is_ok() && matches!(target, Target::Sub("type"));
                 self.report(result);
+                // Values that no longer fit the new type turn red; say why.
+                if let Some(problem) = self.ed.value_mismatch().filter(|_| type_changed) {
+                    self.error(problem);
+                }
                 return Mode::Normal;
             }
             _ => {}

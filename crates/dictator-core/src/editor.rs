@@ -71,6 +71,15 @@ pub fn value_ok(text: &str, t: DataType) -> bool {
     check_value(text, t).is_ok()
 }
 
+/// How a value field is called in messages.
+fn value_label(key: &str) -> &'static str {
+    match key {
+        "min" => "Minimum",
+        "max" => "Maximum",
+        _ => "Default",
+    }
+}
+
 /// Keep sub 0 ("highest sub-index") in step with the subindexes present.
 pub fn sync_highest_sub(obj: &mut Object) {
     if obj.kind == ObjectKind::Var {
@@ -331,6 +340,11 @@ impl Editor {
     /// as `UNSIGNED16`), `access`, `pdo`, `default`, `min`, `max`,
     /// `description` or `save` (`true` / `false`). A VAR's name follows the
     /// object's, so `name` is ignored there.
+    ///
+    /// A default, minimum or maximum that won't export (see
+    /// [`check_value`]) is refused and the field keeps its value. A type
+    /// change is always taken, even when the values no longer fit the new
+    /// type; [`Editor::value_mismatch`] says which ones.
     pub fn edit_sub(&mut self, key: &str, value: &str) -> Result<()> {
         let pos = self.selected_sub.ok_or_else(|| anyhow!("no subindex selected"))?;
         self.with_object(|o| {
@@ -347,15 +361,42 @@ impl Editor {
                 }
                 "access" => s.access = Access::from_short(value).ok_or_else(|| anyhow!("unknown access {value}"))?,
                 "pdo" => s.pdo = PdoMapping::from_short(value).ok_or_else(|| anyhow!("unknown mapping {value}"))?,
-                "default" => s.default = value.to_string(),
-                "min" => s.min = value.to_string(),
-                "max" => s.max = value.to_string(),
+                "default" | "min" | "max" => {
+                    if let Err(why) = check_value(value, s.data_type) {
+                        bail!("{} not changed: {why}", value_label(key));
+                    }
+                    let field = match key {
+                        "default" => &mut s.default,
+                        "min" => &mut s.min,
+                        _ => &mut s.max,
+                    };
+                    *field = value.to_string();
+                }
                 "description" => s.description = value.to_string(),
                 "save" => s.save = value == "true",
                 _ => bail!("unknown subindex field {key}"),
             }
             Ok(())
         })
+    }
+
+    /// The values of the selected subindex that don't fit its type, such
+    /// as a default of 300 after the type became `UNSIGNED8`; `None` when
+    /// they all fit. Front ends show it after a type change.
+    pub fn value_mismatch(&self) -> Option<String> {
+        let s = self.selected_sub_object()?;
+        let bad: Vec<String> = [("default", &s.default), ("min", &s.min), ("max", &s.max)]
+            .into_iter()
+            .filter(|(_, v)| check_value(v, s.data_type).is_err())
+            .map(|(key, v)| format!("{} {}", value_label(key).to_lowercase(), v.trim()))
+            .collect();
+        if bad.is_empty() {
+            return None;
+        }
+        let (verb, it) = if bad.len() == 1 { ("does", "it") } else { ("do", "them") };
+        let what = bad.join(", ");
+        let what = what[..1].to_uppercase() + &what[1..];
+        Some(format!("{what} {verb} not fit {}; fix {it} before exporting", s.data_type.cia_name()))
     }
 
     /// Add an object and select it. An empty name becomes "New object";

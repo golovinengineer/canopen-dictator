@@ -276,10 +276,32 @@ impl Gui {
     }
 
     fn sub_edited(&self, key: &str, value: &str) -> Result<()> {
+        // A refused default/min/max leaves the typed text in its field, with
+        // the red outline and the reason in the status bar, so the user can
+        // finish typing; leaving the field puts the stored value back.
         self.editor.borrow_mut().edit_sub(key, value)?;
         self.update_sub_row();
         self.refresh_dirty();
+        let mismatch = if key == "type" { self.editor.borrow().value_mismatch() } else { None };
+        match mismatch {
+            // The outline of the values that no longer fit follows the type
+            // by itself; say why it turned red.
+            Some(problem) => self.error(problem),
+            None if self.app().get_status_is_error() => self.status(""),
+            None => {}
+        }
         Ok(())
+    }
+
+    /// Show the stored default, minimum and maximum again, dropping text
+    /// that was refused while typing.
+    fn sub_values_left(&self) {
+        let ed = self.editor.borrow();
+        let Some(s) = ed.selected_sub_object() else { return };
+        let app = self.app();
+        app.set_sub_default(s.default.as_str().into());
+        app.set_sub_min(s.min.as_str().into());
+        app.set_sub_max(s.max.as_str().into());
     }
 
     fn add_object(&self, index: &str, name: &str, kind: &str) -> Result<()> {
@@ -542,6 +564,10 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
     on!(on_add_sub, |g| g.add_sub());
     on!(on_delete_sub, |g| g.delete_sub());
     on!(on_sub_edited, |g, key, value| g.sub_edited(&key, &value));
+    on!(on_sub_value_left, |g| {
+        g.sub_values_left();
+        Ok(())
+    });
     on!(on_settings_edited, |g, key, value| g.settings_edited(&key, &value));
 
     // Pure checks behind the red outline of fields whose text won't be accepted.

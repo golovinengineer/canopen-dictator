@@ -105,6 +105,9 @@ export global App {
     callback add-sub();
     callback delete-sub();
     callback sub-edited(string, string);
+    // Focus left the default, minimum or maximum field: show the stored
+    // value again in case the typed one was refused.
+    callback sub-value-left();
     callback settings-edited(string, string);
 
     // Checks behind the red outline of a field whose text won't be accepted.
@@ -735,6 +738,11 @@ component SubInspector inherits VerticalLayout {
                 edited(text) => {
                     App.sub-edited("default", text);
                 }
+                changed has-focus => {
+                    if !self.has-focus {
+                        App.sub-value-left();
+                    }
+                }
             }
         }
     }
@@ -751,6 +759,11 @@ component SubInspector inherits VerticalLayout {
                     edited(text) => {
                         App.sub-edited("min", text);
                     }
+                    changed has-focus => {
+                        if !self.has-focus {
+                            App.sub-value-left();
+                        }
+                    }
                 }
             }
         }
@@ -764,6 +777,11 @@ component SubInspector inherits VerticalLayout {
                     text <=> App.sub-max;
                     edited(text) => {
                         App.sub-edited("max", text);
+                    }
+                    changed has-focus => {
+                        if !self.has-focus {
+                            App.sub-value-left();
+                        }
                     }
                 }
             }

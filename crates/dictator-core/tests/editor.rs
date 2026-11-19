@@ -171,3 +171,45 @@ fn save_marks_clean() {
     assert_eq!(e.project_stem(), "t");
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn values_that_wont_export_are_refused() {
+    let mut e = fresh();
+    e.select_object(Some(0x1000));
+    e.select_sub(Some(0));
+    let err = e.edit_sub("default", "0x1FFFFFFFF").unwrap_err();
+    assert_eq!(format!("{err:#}"), "Default not changed: 0x1FFFFFFFF does not fit UNSIGNED32");
+    assert!(e.edit_sub("max", "lots").is_err());
+    let s = e.selected_sub_object().unwrap();
+    assert_eq!((s.default.as_str(), s.max.as_str()), ("0x00000000", ""));
+    assert!(!e.dirty());
+
+    e.edit_sub("default", "$NODEID+0x180").unwrap();
+    e.edit_sub("min", "").unwrap();
+    e.edit_sub("max", "0xFFFFFFFF").unwrap();
+    let s = e.selected_sub_object().unwrap();
+    assert_eq!((s.default.as_str(), s.max.as_str()), ("$NODEID+0x180", "0xFFFFFFFF"));
+}
+
+#[test]
+fn type_change_keeps_values_that_no_longer_fit() {
+    let mut e = fresh();
+    e.select_object(Some(0x1000));
+    e.select_sub(Some(0));
+    e.edit_sub("default", "300").unwrap();
+    assert_eq!(e.value_mismatch(), None);
+
+    e.edit_sub("type", "UNSIGNED8").unwrap();
+    assert_eq!(e.selected_sub_object().unwrap().default, "300");
+    assert_eq!(e.value_mismatch().as_deref(), Some("Default 300 does not fit UNSIGNED8; fix it before exporting"));
+
+    e.edit_sub("max", "255").unwrap();
+    e.edit_sub("type", "INTEGER8").unwrap();
+    assert_eq!(
+        e.value_mismatch().as_deref(),
+        Some("Default 300, maximum 255 do not fit INTEGER8; fix them before exporting")
+    );
+
+    e.edit_sub("type", "UNSIGNED16").unwrap();
+    assert_eq!(e.value_mismatch(), None);
+}

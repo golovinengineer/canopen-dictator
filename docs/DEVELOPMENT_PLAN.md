@@ -39,7 +39,7 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
 | CanFestival C/H export | `crates/dictator-canfestival/` | `crates/dictator-canfestival/tests/canfestival.rs`: token-identical to gen_cfile's `ObjDict.c/.h` (whitespace ignored; two gen_cfile bugs undone, see below) |
 | Markdown docs export, CANopenEditor layout | `crates/dictator-core/src/export/markdown.rs` | `crates/dictator-core/tests/markdown.rs`: equal to CANopenEditor's `example.md` except tool/project/modified lines |
 | Command line `export` (`--c`, `--od`, `--eds`, `--md`) / `import` (`.xdd`, `.od`) | `src/main.rs`, `src/io.rs` | run by hand |
-| Editing session shared by the front ends: selection, filter, add/delete/renumber object, change kind, add/remove subindex, field edits, settings, validation, dirty tracking | `crates/dictator-core/src/editor.rs` | `crates/dictator-core/tests/editor.rs` |
+| Editing session shared by the front ends: selection, filter, add/delete/renumber object, change kind, add/remove subindex, field edits, settings, validation, dirty tracking. `edit_sub` refuses a default/min/max that won't export; a type change is kept and `value_mismatch` names the values that no longer fit (red field + status message in both front ends) | `crates/dictator-core/src/editor.rs` | `crates/dictator-core/tests/editor.rs` |
 | GUI: open/save, import XDD / `.od`, filter, add/delete/renumber object, change kind, add/remove subindex, edit fields, device + generator settings, exports | `ui/main.slint`, `src/gui.rs` (on `Editor`) | layout checked from a `slint-viewer` screenshot; select, add/remove subindex, callback toggle and delete object clicked through over the Slint MCP server |
 | Terminal UI (Ratatui): the same editing as the GUI, settings screen, open/import with Tab completion, save/save as, exports, unsaved-changes and overwrite prompts | `src/tui/` | input widget unit tests; every action driven by hand in tmux, saved project diffed against the original, EDS export byte-identical to the CLI |
 | Front-end choice: terminal UI when stdin and stdout are a terminal, else the window; `--gui` / `--tui` / `DICTATOR_UI`; cargo features `gui`, `tui` (neither: command line only, for CI); exports create missing output directories | `src/main.rs`, `Cargo.toml` | run by hand |
@@ -56,9 +56,6 @@ crate with its importer, exporter and C generator:
    - click through the remaining GUI actions once (file dialogs, exports,
      kind change); the editing operations now live in
      `dictator-core::editor` and are unit-tested
-   - the GUI accepts a default/min/max that won't export (red outline only);
-     the TUI refuses it. Decide on one behaviour and move the check into
-     `Editor::edit_sub`
    - undo/redo; keyboard shortcuts and a menu bar; remember export targets in
      the project so re-export is one click
    - combo box for node type; multi-line device description
