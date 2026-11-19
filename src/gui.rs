@@ -382,15 +382,14 @@ impl Gui {
 
     fn open_path(&self, path: &Path) -> Result<()> {
         let (od, warnings) = io::open(path)?;
-        let count = od.objects.len();
+        let message = io::open_message(path, od.objects.len(), &warnings);
         if io::is_import(path) {
             // An import becomes an unsaved project; Save asks for a TOML path.
             self.load(od, None, true);
-            self.status(io::import_message(path, count, &warnings));
         } else {
             self.load(od, Some(path.to_path_buf()), false);
-            self.status(format!("Opened {} ({count} objects)", path.display()));
         }
+        self.status(message);
         Ok(())
     }
 

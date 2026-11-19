@@ -279,6 +279,18 @@ impl SubObject {
     }
 }
 
+impl SubObject {
+    /// The default, minimum and maximum that won't export for this
+    /// subindex's type, as (field, value as written, reason), with field
+    /// `"default"`, `"minimum"` or `"maximum"`.
+    pub fn bad_values(&self) -> Vec<(&'static str, &str, String)> {
+        [("default", &self.default), ("minimum", &self.min), ("maximum", &self.max)]
+            .into_iter()
+            .filter_map(|(field, v)| check_value(v, self.data_type).err().map(|why| (field, v.trim(), why)))
+            .collect()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Object {
     pub name: String,
@@ -439,6 +451,28 @@ impl ObjectDictionary {
             .iter()
             .filter(|(_, o)| !o.disabled)
             .map(|(i, o)| (*i, o))
+    }
+
+    /// Every default, minimum and maximum of an enabled object that
+    /// [`check_value`] refuses, as `0x1001: default 300 does not fit
+    /// UNSIGNED8` (`0x1018 sub 0x02: ...` for an ARRAY or RECORD). Exports
+    /// refuse to run while there are any; imports report them as warnings.
+    /// Disabled objects are left out, as they are left out of every export.
+    pub fn value_problems(&self) -> Vec<String> {
+        let mut problems = Vec::new();
+        for (index, obj) in self.enabled() {
+            for s in &obj.subs {
+                for (field, _, why) in s.bad_values() {
+                    let at = if obj.kind == ObjectKind::Var {
+                        format!("0x{index:04X}")
+                    } else {
+                        format!("0x{index:04X} sub 0x{:02X}", s.sub)
+                    };
+                    problems.push(format!("{at}: {field} {why}"));
+                }
+            }
+        }
+        problems
     }
 }
 

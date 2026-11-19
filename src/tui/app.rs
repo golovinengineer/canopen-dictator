@@ -469,18 +469,18 @@ impl App {
     pub fn open_path(&mut self, path: &Path) {
         match io::open(path) {
             Ok((od, warnings)) => {
-                let count = od.objects.len();
-                if io::is_import(path) {
+                self.info(io::open_message(path, od.objects.len(), &warnings));
+                let import = io::is_import(path);
+                if import {
                     self.ed = Editor::new(od, None, true);
                     self.import_source = Some(path.to_path_buf());
-                    self.info(io::import_message(path, count, &warnings));
-                    if !warnings.is_empty() {
-                        self.mode = Mode::Message { title: format!("Import warnings ({})", warnings.len()), lines: warnings };
-                    }
                 } else {
                     self.ed = Editor::new(od, Some(path.to_path_buf()), false);
                     self.import_source = None;
-                    self.info(format!("Opened {} ({count} objects)", path.display()));
+                }
+                if !warnings.is_empty() {
+                    let title = if import { "Import warnings" } else { "Warnings" };
+                    self.mode = Mode::Message { title: format!("{title} ({})", warnings.len()), lines: warnings };
                 }
                 self.reset_view();
             }

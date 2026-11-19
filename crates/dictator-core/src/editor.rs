@@ -385,11 +385,7 @@ impl Editor {
     /// they all fit. Front ends show it after a type change.
     pub fn value_mismatch(&self) -> Option<String> {
         let s = self.selected_sub_object()?;
-        let bad: Vec<String> = [("default", &s.default), ("min", &s.min), ("max", &s.max)]
-            .into_iter()
-            .filter(|(_, v)| check_value(v, s.data_type).is_err())
-            .map(|(key, v)| format!("{} {}", value_label(key).to_lowercase(), v.trim()))
-            .collect();
+        let bad: Vec<String> = s.bad_values().into_iter().map(|(field, v, _)| format!("{field} {v}")).collect();
         if bad.is_empty() {
             return None;
         }

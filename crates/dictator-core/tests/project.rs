@@ -111,3 +111,26 @@ fn checked_in_sample_project_matches_xdd() {
     }
     assert_eq!(from_xdd, common::sample_project());
 }
+
+#[test]
+fn value_problems_name_each_value_that_wont_export() {
+    // The example, from either source, exports as it is.
+    assert_eq!(common::sample_xdd().value_problems(), Vec::<String>::new());
+    assert_eq!(common::sample_project().value_problems(), Vec::<String>::new());
+
+    let mut od = common::sample_project();
+    od.objects.get_mut(&0x1001).unwrap().subs[0].default = "300".into();
+    let identity = od.objects.get_mut(&0x1018).unwrap();
+    identity.subs[1].max = "lots".into();
+    assert_eq!(
+        od.value_problems(),
+        [
+            "0x1001: default 300 does not fit UNSIGNED8",
+            "0x1018 sub 0x01: maximum \"lots\" is not a number",
+        ]
+    );
+
+    // Disabled objects are left out of exports, and so out of the check.
+    od.objects.get_mut(&0x1018).unwrap().disabled = true;
+    assert_eq!(od.value_problems(), ["0x1001: default 300 does not fit UNSIGNED8"]);
+}

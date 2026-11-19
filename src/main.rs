@@ -55,7 +55,11 @@ fn export(args: &[String]) -> Result<()> {
     if outputs.is_empty() {
         bail!("export needs at least one of --c, --od, --eds, --md");
     }
-    let od = open(&input)?;
+    // Values that won't export fail here, once, rather than as a warning
+    // from the open followed by the same text as the error.
+    let (od, warnings) = io::open(&input)?;
+    io::check_values(&od)?;
+    print_warnings(warnings);
     let project_name = input.file_name().and_then(|n| n.to_str()).unwrap_or_default();
     for (kind, path) in outputs {
         match kind.as_str() {
@@ -69,12 +73,16 @@ fn export(args: &[String]) -> Result<()> {
     Ok(())
 }
 
-/// `io::open`, printing import warnings to stderr.
-fn open(path: &Path) -> Result<dictator_core::model::ObjectDictionary> {
-    let (od, warnings) = io::open(path)?;
+fn print_warnings(warnings: Vec<String>) {
     for w in warnings {
         eprintln!("warning: {w}");
     }
+}
+
+/// `io::open`, printing import warnings to stderr.
+fn open(path: &Path) -> Result<dictator_core::model::ObjectDictionary> {
+    let (od, warnings) = io::open(path)?;
+    print_warnings(warnings);
     Ok(od)
 }
 
