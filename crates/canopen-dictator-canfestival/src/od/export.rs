@@ -69,7 +69,9 @@ fn value(text: &str, t: DataType, ctx: &str) -> Result<Option<Py>> {
         match upper.as_str() {
             "TRUE" => Ok(1),
             "FALSE" => Ok(0),
-            _ => parse_int(trimmed).ok_or_else(|| anyhow!("{ctx}: default {text:?} is not a number")),
+            _ => {
+                parse_int(trimmed).ok_or_else(|| anyhow!("{ctx}: default {text:?} is not a number"))
+            }
         }
     };
     Ok(Some(match t {
@@ -127,7 +129,11 @@ pub fn to_node(od: &ObjectDictionary) -> Result<Py> {
                     "{ctx}: is a {} in the project but CanFestival defines \"{}\" as {}",
                     obj.kind.short(),
                     ds301::entry_name(t, index),
-                    if table_is_list { "an array/record" } else { "a var" }
+                    if table_is_list {
+                        "an array/record"
+                    } else {
+                        "a var"
+                    }
                 );
             }
         }
@@ -168,10 +174,17 @@ pub fn to_node(od: &ObjectDictionary) -> Result<Py> {
                 Py::List((1..=max_sub).map(value_of).collect::<Result<_>>()?),
             ));
             if table.is_none() {
-                let mut values = vec![sub_def("Number of Entries", DataType::U8, Access::Ro, false)];
+                let mut values = vec![sub_def(
+                    "Number of Entries",
+                    DataType::U8,
+                    Access::Ro,
+                    false,
+                )];
                 for sub in 1..=max_sub {
                     values.push(match obj.sub(sub) {
-                        Some(so) => sub_def(&so.name, so.data_type, so.access, so.pdo != PdoMapping::No),
+                        Some(so) => {
+                            sub_def(&so.name, so.data_type, so.access, so.pdo != PdoMapping::No)
+                        }
                         None => sub_def("Compatibility Entry", DataType::U8, Access::Rw, false),
                     });
                 }
@@ -190,11 +203,16 @@ pub fn to_node(od: &ObjectDictionary) -> Result<Py> {
                 }
             }
         } else {
-            let so = obj.sub(0).ok_or_else(|| anyhow!("{ctx}: VAR without sub 0"))?;
+            let so = obj
+                .sub(0)
+                .ok_or_else(|| anyhow!("{ctx}: VAR without sub 0"))?;
             dictionary.push((Py::Int(index as i128), value_of(0)?));
             if table.is_none() {
                 let def = sub_def(&obj.name, so.data_type, so.access, so.pdo != PdoMapping::No);
-                user_mapping.push((Py::Int(index as i128), mapping_entry(&obj.name, 1, vec![def])));
+                user_mapping.push((
+                    Py::Int(index as i128),
+                    mapping_entry(&obj.name, 1, vec![def]),
+                ));
             }
             if so.save {
                 index_params.push((s("save"), Py::Bool(true)));
@@ -220,9 +238,16 @@ pub fn to_node(od: &ObjectDictionary) -> Result<Py> {
     ];
     // A class attribute in node.py; only stored when changed.
     if cf.default_string_size != CfSettings::default().default_string_size {
-        attrs.push(("DefaultStringSize".to_string(), Py::Int(cf.default_string_size as i128)));
+        attrs.push((
+            "DefaultStringSize".to_string(),
+            Py::Int(cf.default_string_size as i128),
+        ));
     }
-    Ok(Py::Object { module: "node".into(), class: "Node".into(), attrs })
+    Ok(Py::Object {
+        module: "node".into(),
+        class: "Node".into(),
+        attrs,
+    })
 }
 
 /// `AddMappingEntry` result: `{name, struct, need, values}`.
@@ -248,7 +273,10 @@ mod tests {
         assert_eq!(v("-3", DataType::I16), Some(Py::Int(-3)));
         assert_eq!(v("1", DataType::Boolean), Some(Py::Bool(true)));
         assert_eq!(v("2.5", DataType::Real32), Some(Py::Float("2.5".into())));
-        assert_eq!(v("$NODEID+0x180", DataType::U32), Some(s("\"$NODEID+0x180\"")));
+        assert_eq!(
+            v("$NODEID+0x180", DataType::U32),
+            Some(s("\"$NODEID+0x180\""))
+        );
         assert_eq!(v("0x10", DataType::VisibleString), Some(s("0x10")));
         assert!(value("abc", DataType::U8, "").is_err());
     }

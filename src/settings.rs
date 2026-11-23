@@ -18,7 +18,11 @@ pub struct Settings {
 /// Support on macOS, `%APPDATA%` on Windows, `$XDG_CONFIG_HOME` (or
 /// `~/.config`) elsewhere.
 fn path() -> Option<PathBuf> {
-    let env = |name| std::env::var_os(name).filter(|v| !v.is_empty()).map(PathBuf::from);
+    let env = |name| {
+        std::env::var_os(name)
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from)
+    };
     let base = if cfg!(target_os = "macos") {
         env("HOME")?.join("Library/Application Support")
     } else if cfg!(windows) {
@@ -55,7 +59,8 @@ impl Settings {
         std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
         // Written aside and renamed, so a crash mid-write can't leave half a file.
         let tmp = path.with_extension("toml.tmp");
-        std::fs::write(&tmp, self.table.to_string()).with_context(|| format!("writing {}", tmp.display()))?;
+        std::fs::write(&tmp, self.table.to_string())
+            .with_context(|| format!("writing {}", tmp.display()))?;
         std::fs::rename(&tmp, &path).with_context(|| format!("writing {}", path.display()))?;
         Ok(())
     }
@@ -65,7 +70,10 @@ impl Settings {
     }
 
     fn set(&mut self, section: &str, key: &str, value: Value) {
-        let entry = self.table.entry(section).or_insert_with(|| Value::Table(Table::new()));
+        let entry = self
+            .table
+            .entry(section)
+            .or_insert_with(|| Value::Table(Table::new()));
         if !entry.is_table() {
             *entry = Value::Table(Table::new());
         }

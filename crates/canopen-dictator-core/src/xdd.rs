@@ -188,7 +188,10 @@ pub fn parse(xml: &str) -> Result<ObjectDictionary> {
     for d in doc.descendants().filter(|n| n.tag_name().name() == "dummy") {
         if let Some((name, on)) = d.attribute("entry").and_then(|e| e.split_once('='))
             && on.trim() == "1"
-            && let Some(t) = name.trim().strip_prefix("Dummy").and_then(|t| t.parse().ok())
+            && let Some(t) = name
+                .trim()
+                .strip_prefix("Dummy")
+                .and_then(|t| t.parse().ok())
         {
             od.device.dummy_usage.push(t);
         }

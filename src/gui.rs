@@ -32,7 +32,10 @@ struct Gui {
     settings: RefCell<Settings>,
 }
 
-fn names<T>(items: impl IntoIterator<Item = T>, f: impl Fn(T) -> &'static str) -> ModelRc<SharedString> {
+fn names<T>(
+    items: impl IntoIterator<Item = T>,
+    f: impl Fn(T) -> &'static str,
+) -> ModelRc<SharedString> {
     let v: Vec<SharedString> = items.into_iter().map(|i| f(i).into()).collect();
     ModelRc::new(VecModel::from(v))
 }
@@ -55,7 +58,12 @@ fn sub_row(s: &SubObject) -> SubRow {
         name: s.name.as_str().into(),
         type_name: s.data_type.short().into(),
         access: s.access.short().into(),
-        pdo: if s.pdo == PdoMapping::No { "" } else { s.pdo.short() }.into(),
+        pdo: if s.pdo == PdoMapping::No {
+            ""
+        } else {
+            s.pdo.short()
+        }
+        .into(),
         default_value: s.default.as_str().into(),
     }
 }
@@ -63,7 +71,12 @@ fn sub_row(s: &SubObject) -> SubRow {
 fn form(fields: Vec<SettingField>) -> ModelRc<FormField> {
     let rows: Vec<FormField> = fields
         .into_iter()
-        .map(|f| FormField { key: f.key.into(), label: f.label.into(), value: f.value.into(), hint: f.hint.into() })
+        .map(|f| FormField {
+            key: f.key.into(),
+            label: f.label.into(),
+            value: f.value.into(),
+            hint: f.hint.into(),
+        })
         .collect();
     ModelRc::new(VecModel::from(rows))
 }
@@ -149,12 +162,18 @@ impl Gui {
             .visible_objects()
             .into_iter()
             .map(|row| match row {
-                ListRow::Header(title) => ObjectRow { name: title.into(), header: true, index: -1, ..Default::default() },
+                ListRow::Header(title) => ObjectRow {
+                    name: title.into(),
+                    header: true,
+                    index: -1,
+                    ..Default::default()
+                },
                 ListRow::Object(index) => object_row(index, &ed.od.objects[&index]),
             })
             .collect();
         self.objects.set_vec(rows);
-        self.app().set_selected_index(ed.selected().map(i32::from).unwrap_or(-1));
+        self.app()
+            .set_selected_index(ed.selected().map(i32::from).unwrap_or(-1));
         drop(ed);
         self.reveal();
     }
@@ -163,7 +182,11 @@ impl Gui {
     fn reveal(&self) {
         let selected = self.editor.borrow().selected().map(i32::from);
         let row = selected
-            .and_then(|index| self.objects.iter().position(|r| !r.header && r.index == index))
+            .and_then(|index| {
+                self.objects
+                    .iter()
+                    .position(|r| !r.header && r.index == index)
+            })
             .map_or(-1, |row| row as i32);
         let app = self.app();
         app.set_selected_row(row);
@@ -184,12 +207,18 @@ impl Gui {
         app.set_obj_is_var(obj.kind == ObjectKind::Var);
         app.set_obj_index_text(format!("{index:04X}").into());
         app.set_obj_name(obj.name.as_str().into());
-        app.set_obj_kind(ObjectKind::ALL.iter().position(|k| *k == obj.kind).unwrap_or(0) as i32);
+        app.set_obj_kind(
+            ObjectKind::ALL
+                .iter()
+                .position(|k| *k == obj.kind)
+                .unwrap_or(0) as i32,
+        );
         app.set_obj_enabled(!obj.disabled);
         app.set_obj_callback(obj.callback);
         app.set_obj_description(obj.description.as_str().into());
         app.set_obj_note(object_note(index).into());
-        self.subs.set_vec(obj.subs.iter().map(sub_row).collect::<Vec<_>>());
+        self.subs
+            .set_vec(obj.subs.iter().map(sub_row).collect::<Vec<_>>());
         drop(ed);
         self.refresh_sub();
         self.reveal();
@@ -205,9 +234,19 @@ impl Gui {
         };
         app.set_has_sub(true);
         app.set_sub_name(s.name.as_str().into());
-        app.set_sub_type(DataType::ALL.iter().position(|t| *t == s.data_type).unwrap_or(0) as i32);
+        app.set_sub_type(
+            DataType::ALL
+                .iter()
+                .position(|t| *t == s.data_type)
+                .unwrap_or(0) as i32,
+        );
         app.set_sub_access(Access::ALL.iter().position(|t| *t == s.access).unwrap_or(0) as i32);
-        app.set_sub_pdo(PdoMapping::ALL.iter().position(|t| *t == s.pdo).unwrap_or(0) as i32);
+        app.set_sub_pdo(
+            PdoMapping::ALL
+                .iter()
+                .position(|t| *t == s.pdo)
+                .unwrap_or(0) as i32,
+        );
         app.set_sub_default(s.default.as_str().into());
         app.set_sub_min(s.min.as_str().into());
         app.set_sub_max(s.max.as_str().into());
@@ -218,7 +257,8 @@ impl Gui {
     fn refresh_settings(&self) {
         let ed = self.editor.borrow();
         self.app().set_device_fields(form(ed.device_fields()));
-        self.app().set_canfestival_fields(form(ed.canfestival_fields()));
+        self.app()
+            .set_canfestival_fields(form(ed.canfestival_fields()));
     }
 
     fn refresh_all(&self) {
@@ -231,9 +271,15 @@ impl Gui {
     /// Update the list row of the selected object in place.
     fn update_object_row(&self) {
         let ed = self.editor.borrow();
-        let Some((index, obj)) = ed.selected_object() else { return };
+        let Some((index, obj)) = ed.selected_object() else {
+            return;
+        };
         for i in 0..self.objects.row_count() {
-            if self.objects.row_data(i).is_some_and(|r| !r.header && r.index == index as i32) {
+            if self
+                .objects
+                .row_data(i)
+                .is_some_and(|r| !r.header && r.index == index as i32)
+            {
                 self.objects.set_row_data(i, object_row(index, obj));
             }
         }
@@ -259,7 +305,12 @@ impl Gui {
             "name" => {
                 self.update_object_row();
                 // A VAR's value is named after the object.
-                if self.editor.borrow().selected_object().is_some_and(|(_, o)| o.kind == ObjectKind::Var) {
+                if self
+                    .editor
+                    .borrow()
+                    .selected_object()
+                    .is_some_and(|(_, o)| o.kind == ObjectKind::Var)
+                {
                     self.update_sub_row();
                     self.app().set_sub_name(value.into());
                 }
@@ -300,7 +351,9 @@ impl Gui {
     /// that was refused while typing.
     fn sub_values_left(&self) {
         let ed = self.editor.borrow();
-        let Some(s) = ed.selected_sub_object() else { return };
+        let Some(s) = ed.selected_sub_object() else {
+            return;
+        };
         let app = self.app();
         app.set_sub_default(s.default.as_str().into());
         app.set_sub_min(s.min.as_str().into());
@@ -362,7 +415,11 @@ impl Gui {
         let answer = rfd::MessageDialog::new()
             .set_title("Unsaved changes")
             .set_description(format!("Save the changes to {label}?"))
-            .set_buttons(rfd::MessageButtons::YesNoCancelCustom(SAVE.into(), DONT_SAVE.into(), "Cancel".into()))
+            .set_buttons(rfd::MessageButtons::YesNoCancelCustom(
+                SAVE.into(),
+                DONT_SAVE.into(),
+                "Cancel".into(),
+            ))
             .show();
         match answer {
             rfd::MessageDialogResult::Custom(b) if b == SAVE => match self.save_project() {
@@ -453,8 +510,19 @@ impl Gui {
 
     /// Ask for a target and run an exporter.
     // TODO: remember export targets in the project so re-export is one click.
-    fn export(&self, what: &str, default_name: &str, ext: &str, run: impl FnOnce(&ObjectDictionary, &Path) -> Result<()>) -> Result<()> {
-        let Some(path) = self.dialog().add_filter(what, &[ext]).set_file_name(default_name).save_file() else {
+    fn export(
+        &self,
+        what: &str,
+        default_name: &str,
+        ext: &str,
+        run: impl FnOnce(&ObjectDictionary, &Path) -> Result<()>,
+    ) -> Result<()> {
+        let Some(path) = self
+            .dialog()
+            .add_filter(what, &[ext])
+            .set_file_name(default_name)
+            .save_file()
+        else {
             return Ok(());
         };
         run(&self.editor.borrow().od, &path)?;
@@ -518,8 +586,18 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
     on!(on_open_project, |g| g.open_project());
     on!(on_save_project, |g| g.save_project());
     on!(on_save_project_as, |g| g.save_project_as());
-    on!(on_export_c, |g| g.export("CanFestival C code", "ObjDict.c", "c", io::export_c));
-    on!(on_export_od, |g| g.export("CanFestival project", "ObjDict.od", "od", io::export_od));
+    on!(on_export_c, |g| g.export(
+        "CanFestival C code",
+        "ObjDict.c",
+        "c",
+        io::export_c
+    ));
+    on!(on_export_od, |g| g.export(
+        "CanFestival project",
+        "ObjDict.od",
+        "od",
+        io::export_od
+    ));
     on!(on_export_eds, |g| {
         let name = format!("{}.eds", g.editor.borrow().project_stem());
         g.export("EDS", &name, "eds", io::export_eds)
@@ -527,7 +605,9 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
     on!(on_export_docs, |g| {
         let stem = g.editor.borrow().project_stem();
         let project = g.app().get_file_label().to_string();
-        g.export("documentation", &format!("{stem}.md"), "md", |od, path| io::export_markdown(od, path, &project))
+        g.export("documentation", &format!("{stem}.md"), "md", |od, path| {
+            io::export_markdown(od, path, &project)
+        })
     });
     // Hiding the only window ends `run()`.
     on!(on_quit, |g| {
@@ -544,11 +624,14 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
         Ok(())
     });
     on!(on_select_object, |g, index| {
-        g.editor.borrow_mut().select_object(u16::try_from(index).ok());
+        g.editor
+            .borrow_mut()
+            .select_object(u16::try_from(index).ok());
         g.refresh_object();
         Ok(())
     });
-    on!(on_add_object, |g, index, name, kind| g.add_object(&index, &name, &kind));
+    on!(on_add_object, |g, index, name, kind| g
+        .add_object(&index, &name, &kind));
     on!(on_delete_object, |g| g.delete_object());
     on!(on_object_edited, |g, key, value| {
         let result = g.object_edited(&key, &value);
@@ -570,29 +653,41 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
         g.sub_values_left();
         Ok(())
     });
-    on!(on_settings_edited, |g, key, value| g.settings_edited(&key, &value));
+    on!(on_settings_edited, |g, key, value| g
+        .settings_edited(&key, &value));
 
     // Pure checks behind the red outline of fields whose text won't be accepted.
     let weak = Rc::downgrade(&gui);
     app.on_index_ok(move |text, current| {
-        weak.upgrade().is_none_or(|g| g.editor.borrow().index_ok(&text, u16::try_from(current).ok()))
+        weak.upgrade().is_none_or(|g| {
+            g.editor
+                .borrow()
+                .index_ok(&text, u16::try_from(current).ok())
+        })
     });
     app.on_value_ok(|key, default, min, max, type_index| {
-        let t = usize::try_from(type_index).ok().and_then(|i| DataType::ALL.get(i).copied());
+        let t = usize::try_from(type_index)
+            .ok()
+            .and_then(|i| DataType::ALL.get(i).copied());
         t.is_none_or(|t| editor::value_field_ok(&key, &default, &min, &max, t))
     });
     let weak = Rc::downgrade(&gui);
-    app.on_setting_ok(move |key, value| weak.upgrade().is_none_or(|g| g.editor.borrow().setting_ok(&key, &value)));
+    app.on_setting_ok(move |key, value| {
+        weak.upgrade()
+            .is_none_or(|g| g.editor.borrow().setting_ok(&key, &value))
+    });
 
     let weak = Rc::downgrade(&gui);
-    gui.ui.window().on_close_requested(move || match weak.upgrade() {
-        Some(g) if !g.settle_unsaved() => slint::CloseRequestResponse::KeepWindowShown,
-        Some(g) => {
-            g.save_layout();
-            slint::CloseRequestResponse::HideWindow
-        }
-        None => slint::CloseRequestResponse::HideWindow,
-    });
+    gui.ui
+        .window()
+        .on_close_requested(move || match weak.upgrade() {
+            Some(g) if !g.settle_unsaved() => slint::CloseRequestResponse::KeepWindowShown,
+            Some(g) => {
+                g.save_layout();
+                slint::CloseRequestResponse::HideWindow
+            }
+            None => slint::CloseRequestResponse::HideWindow,
+        });
 
     gui.ui.run()?;
     Ok(())

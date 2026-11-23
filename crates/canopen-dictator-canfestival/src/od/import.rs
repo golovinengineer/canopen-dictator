@@ -55,7 +55,9 @@ fn parse_mapping(py: Option<&Py>, what: &str) -> Result<Mapping> {
         return Ok(out);
     };
     for (k, v) in items {
-        let index = k.as_int().ok_or_else(|| anyhow!("{what}: non-numeric index {k:?}"))?;
+        let index = k
+            .as_int()
+            .ok_or_else(|| anyhow!("{what}: non-numeric index {k:?}"))?;
         // Below 0x1000 are data type definitions, not entries.
         if !(0x1000..=0xFFFF).contains(&index) {
             continue;
@@ -67,12 +69,20 @@ fn parse_mapping(py: Option<&Py>, what: &str) -> Result<Mapping> {
                 .iter()
                 .map(|s| {
                     Ok(SubDef {
-                        name: s.get_str("name").and_then(Py::as_str).unwrap_or("").to_string(),
+                        name: s
+                            .get_str("name")
+                            .and_then(Py::as_str)
+                            .unwrap_or("")
+                            .to_string(),
                         ty: s
                             .get_str("type")
                             .and_then(Py::as_int)
                             .ok_or_else(|| anyhow!("{ctx}: sub-entry without a type"))?,
-                        access: s.get_str("access").and_then(Py::as_str).unwrap_or("rw").to_string(),
+                        access: s
+                            .get_str("access")
+                            .and_then(Py::as_str)
+                            .unwrap_or("rw")
+                            .to_string(),
                         pdo: s.get_str("pdo").is_some_and(Py::truthy),
                         nbmax: s.get_str("nbmax").and_then(Py::as_int),
                     })
@@ -113,7 +123,11 @@ fn find_index(index: u16, mapping: &Mapping) -> Option<u16> {
 /// `FindSubentryInfos` on one mapping entry, name formatted.
 fn find_sub(e: &EntryDef, base: u16, index: u16, sub: u8) -> Option<SubDef> {
     let sub_i = sub as i128;
-    let incr = if e.structure & OD_IDENTICAL_INDEXES != 0 { e.incr } else { 1 };
+    let incr = if e.structure & OD_IDENTICAL_INDEXES != 0 {
+        e.incr
+    } else {
+        1
+    };
     let info = if e.structure & ds301::OD_SUBINDEX == 0 {
         None
     } else if e.structure & OD_IDENTICAL_SUBINDEXES != 0 {
@@ -256,7 +270,12 @@ pub fn parse(text: &str) -> Result<Import> {
 
 fn from_node(node: &Py) -> Result<Import> {
     let mut warnings = Vec::new();
-    let text = |name: &str| node.attr(name).and_then(Py::as_str).unwrap_or("").to_string();
+    let text = |name: &str| {
+        node.attr(name)
+            .and_then(Py::as_str)
+            .unwrap_or("")
+            .to_string()
+    };
 
     let mappings = [
         parse_mapping(node.attr("Profile"), "Profile")?,
@@ -268,7 +287,10 @@ fn from_node(node: &Py) -> Result<Import> {
             .iter()
             .find_map(|m| find_index(index, m).map(|base| (base, &m[&base])))
     };
-    let params = node.attr("ParamsDictionary").cloned().unwrap_or(Py::Dict(Vec::new()));
+    let params = node
+        .attr("ParamsDictionary")
+        .cloned()
+        .unwrap_or(Py::Dict(Vec::new()));
 
     let mut od = ObjectDictionary::default();
     od.device.granularity = 8;
@@ -296,7 +318,9 @@ fn from_node(node: &Py) -> Result<Import> {
     };
     let mut entries: Vec<(u16, &Py)> = Vec::new();
     for (k, v) in dictionary {
-        let index = k.as_int().ok_or_else(|| anyhow!("Dictionary: non-numeric index {k:?}"))?;
+        let index = k
+            .as_int()
+            .ok_or_else(|| anyhow!("Dictionary: non-numeric index {k:?}"))?;
         match u16::try_from(index) {
             Ok(i) if i >= 0x1000 => entries.push((i, v)),
             _ => warnings.push(format!(
@@ -350,9 +374,13 @@ fn from_node(node: &Py) -> Result<Import> {
         };
 
         let index_params = params.get(&Py::Int(index as i128));
-        let flag = |p: Option<&Py>, key: &str| p.and_then(|p| p.get_str(key)).is_some_and(Py::truthy);
+        let flag =
+            |p: Option<&Py>, key: &str| p.and_then(|p| p.get_str(key)).is_some_and(Py::truthy);
         let comment = |p: Option<&Py>| {
-            p.and_then(|p| p.get_str("comment")).and_then(Py::as_str).unwrap_or("").to_string()
+            p.and_then(|p| p.get_str("comment"))
+                .and_then(Py::as_str)
+                .unwrap_or("")
+                .to_string()
         };
         let mut check_buffer_size = |p: Option<&Py>, what: &str| {
             if let Some(b) = p.and_then(|p| p.get_str("buffer_size"))
@@ -368,7 +396,11 @@ fn from_node(node: &Py) -> Result<Import> {
             let d = describe(sub)?;
             let sctx = format!("{ctx} sub 0x{sub:02X}");
             let mut s = SubObject::new(sub, &d.name, d.data_type, d.access);
-            s.pdo = if d.pdo { PdoMapping::Optional } else { PdoMapping::No };
+            s.pdo = if d.pdo {
+                PdoMapping::Optional
+            } else {
+                PdoMapping::No
+            };
             s.default = match (v, table) {
                 (Py::Str(f), Some(t)) if f.contains("[base<") => {
                     eval_base_formula(f, (index - t.index) as u32)
@@ -418,7 +450,11 @@ fn from_node(node: &Py) -> Result<Import> {
             }
             _ => bail!(
                 "{ctx}: value does not match its definition ({})",
-                if is_list { "expected a list of subindex values" } else { "expected a single value" }
+                if is_list {
+                    "expected a list of subindex values"
+                } else {
+                    "expected a single value"
+                }
             ),
         };
         obj.callback = flag(index_params, "callback");
@@ -460,8 +496,14 @@ mod tests {
         assert_eq!(f(Py::Int(0x180), DataType::U32), "0x00000180");
         assert_eq!(f(Py::Int(-5), DataType::I16), "-5");
         assert_eq!(f(Py::Bool(false), DataType::Boolean), "0");
-        assert_eq!(f(Py::Str("\"$NODEID+0x180\"".into()), DataType::U32), "$NODEID+0x180");
-        assert_eq!(f(Py::Str("Example".into()), DataType::VisibleString), "Example");
+        assert_eq!(
+            f(Py::Str("\"$NODEID+0x180\"".into()), DataType::U32),
+            "$NODEID+0x180"
+        );
+        assert_eq!(
+            f(Py::Str("Example".into()), DataType::VisibleString),
+            "Example"
+        );
     }
 
     #[test]

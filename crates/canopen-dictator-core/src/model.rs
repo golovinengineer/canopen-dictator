@@ -284,10 +284,18 @@ impl SubObject {
     /// subindex's type, as (field, value as written, reason), with field
     /// `"default"`, `"minimum"` or `"maximum"`.
     pub fn bad_values(&self) -> Vec<(&'static str, &str, String)> {
-        [("default", &self.default), ("minimum", &self.min), ("maximum", &self.max)]
-            .into_iter()
-            .filter_map(|(field, v)| check_value(v, self.data_type).err().map(|why| (field, v.trim(), why)))
-            .collect()
+        [
+            ("default", &self.default),
+            ("minimum", &self.min),
+            ("maximum", &self.max),
+        ]
+        .into_iter()
+        .filter_map(|(field, v)| {
+            check_value(v, self.data_type)
+                .err()
+                .map(|why| (field, v.trim(), why))
+        })
+        .collect()
     }
 
     /// A default outside the minimum/maximum, or a minimum above the
@@ -439,9 +447,14 @@ impl ObjectDictionary {
 
         let mut o = Object::new("Identity", ObjectKind::Record);
         o.subs[0].default = "0x04".into();
-        for (i, n) in ["Vendor-ID", "Product code", "Revision number", "Serial number"]
-            .iter()
-            .enumerate()
+        for (i, n) in [
+            "Vendor-ID",
+            "Product code",
+            "Revision number",
+            "Serial number",
+        ]
+        .iter()
+        .enumerate()
         {
             let mut s = SubObject::new(i as u8 + 1, n, DataType::U32, Access::Ro);
             s.default = "0x00000000".into();
@@ -475,7 +488,10 @@ impl ObjectDictionary {
                 } else {
                     format!("0x{index:04X} sub 0x{:02X}", s.sub)
                 };
-                let type_problems = s.bad_values().into_iter().map(|(field, _, why)| (field, why));
+                let type_problems = s
+                    .bad_values()
+                    .into_iter()
+                    .map(|(field, _, why)| (field, why));
                 for (field, why) in type_problems.chain(s.limit_problems()) {
                     problems.push(format!("{at}: {field} {why}"));
                 }
@@ -523,7 +539,11 @@ pub fn check_value(text: &str, t: DataType) -> Result<(), String> {
     if let Some(rest) = upper.strip_prefix("$NODEID") {
         let rest = rest.trim();
         let ok = rest.is_empty() || rest.strip_prefix('+').and_then(parse_int).is_some();
-        return if ok { Ok(()) } else { Err(format!("{text:?} is not a $NODEID formula")) };
+        return if ok {
+            Ok(())
+        } else {
+            Err(format!("{text:?} is not a $NODEID formula"))
+        };
     }
     let v = parse_int(text).ok_or_else(|| format!("{text:?} is not a number"))?;
     if v < min || v > max {
@@ -539,7 +559,12 @@ pub fn check_value(text: &str, t: DataType) -> Result<(), String> {
 /// Only numbers are compared: empty values, strings, domains and
 /// `$NODEID` formulas (their value depends on the node id) are skipped,
 /// and so are values [`check_value`] refuses, which are reported as such.
-pub fn check_limits(default: &str, min: &str, max: &str, t: DataType) -> Vec<(&'static str, String)> {
+pub fn check_limits(
+    default: &str,
+    min: &str,
+    max: &str,
+    t: DataType,
+) -> Vec<(&'static str, String)> {
     fn compare<T: PartialOrd>(
         parse: impl Fn(&str) -> Option<T>,
         [default, min, max]: [&str; 3],
@@ -580,7 +605,10 @@ pub fn check_limits(default: &str, min: &str, max: &str, t: DataType) -> Vec<(&'
             texts,
         )
     } else if matches!(t, DataType::Real32 | DataType::Real64) {
-        compare(|text| usable(text).then(|| text.parse::<f64>().ok()).flatten(), texts)
+        compare(
+            |text| usable(text).then(|| text.parse::<f64>().ok()).flatten(),
+            texts,
+        )
     } else {
         Vec::new()
     }
@@ -654,11 +682,23 @@ mod tests {
     fn check_limits_compares_numbers_only() {
         use DataType::*;
         let none: Vec<(&str, String)> = Vec::new();
-        assert_eq!(check_limits("300", "", "255", U16), [("default", "300 is above the maximum 255".to_string())]);
-        assert_eq!(check_limits("0x05", "10", "", U8), [("default", "0x05 is below the minimum 10".to_string())]);
-        assert_eq!(check_limits("-1.5", "-1", "1", Real32), [("default", "-1.5 is below the minimum -1".to_string())]);
+        assert_eq!(
+            check_limits("300", "", "255", U16),
+            [("default", "300 is above the maximum 255".to_string())]
+        );
+        assert_eq!(
+            check_limits("0x05", "10", "", U8),
+            [("default", "0x05 is below the minimum 10".to_string())]
+        );
+        assert_eq!(
+            check_limits("-1.5", "-1", "1", Real32),
+            [("default", "-1.5 is below the minimum -1".to_string())]
+        );
         // An upside-down range is reported once, without judging the default.
-        assert_eq!(check_limits("7", "10", "5", I16), [("minimum", "10 is above the maximum 5".to_string())]);
+        assert_eq!(
+            check_limits("7", "10", "5", I16),
+            [("minimum", "10 is above the maximum 5".to_string())]
+        );
         // Hex, decimal and booleans compare by value.
         assert_eq!(check_limits("0x10", "16", "0x10", U8), none);
         assert_eq!(check_limits("TRUE", "0", "1", Boolean), none);

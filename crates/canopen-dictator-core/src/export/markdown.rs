@@ -71,7 +71,9 @@ fn kv_table(o: &mut String, rows: &[(&str, String)]) {
 fn mapped_name(od: &ObjectDictionary, index: u16, sub: u8) -> String {
     // Dummy entries map a data type index (0x0001..0x0007).
     if index < 0x1000 {
-        return DataType::from_cia_index(index).map(|t| t.cia_name().to_string()).unwrap_or_default();
+        return DataType::from_cia_index(index)
+            .map(|t| t.cia_name().to_string())
+            .unwrap_or_default();
     }
     match od.objects.get(&index) {
         Some(obj) if obj.kind == ObjectKind::Var => obj.name.clone(),
@@ -85,11 +87,15 @@ fn mapped_name(od: &ObjectDictionary, index: u16, sub: u8) -> String {
 
 fn pdo_section(o: &mut String, od: &ObjectDictionary) {
     for (comm_base, label) in [(0x1400u16, "RPDO"), (0x1800u16, "TPDO")] {
-        for (index, comm) in od.enabled().filter(|(i, _)| (comm_base..comm_base + 0x200).contains(i)) {
+        for (index, comm) in od
+            .enabled()
+            .filter(|(i, _)| (comm_base..comm_base + 0x200).contains(i))
+        {
             let Some(map) = od.objects.get(&(index + 0x200)).filter(|m| !m.disabled) else {
                 continue;
             };
-            let value = |obj: &Object, sub: u8| obj.sub(sub).map(|s| s.default.clone()).unwrap_or_default();
+            let value =
+                |obj: &Object, sub: u8| obj.sub(sub).map(|s| s.default.clone()).unwrap_or_default();
             let count = parse_int(&value(map, 0)).unwrap_or(0);
             if count <= 0 {
                 continue;
@@ -125,7 +131,11 @@ fn object_section(o: &mut String, index: u16, obj: &Object) {
     let _ = writeln!(o, "\n### 0x{index:04X} - {}", obj.name);
     let _ = writeln!(o, "| Object Type | Count Label    | Storage Group  |");
     let _ = writeln!(o, "| ----------- | -------------- | -------------- |");
-    let storage = if obj.storage_group.is_empty() { "RAM" } else { &obj.storage_group };
+    let storage = if obj.storage_group.is_empty() {
+        "RAM"
+    } else {
+        &obj.storage_group
+    };
     let _ = writeln!(
         o,
         "| {:<11} | {:<14} | {storage:<14} |",
@@ -134,8 +144,14 @@ fn object_section(o: &mut String, index: u16, obj: &Object) {
     );
     o.push('\n');
     if obj.kind == ObjectKind::Var {
-        let _ = writeln!(o, "| Data Type               | SDO | PDO | SRDO | Default Value                   |");
-        let _ = writeln!(o, "| ----------------------- | --- | --- | ---- | ------------------------------- |");
+        let _ = writeln!(
+            o,
+            "| Data Type               | SDO | PDO | SRDO | Default Value                   |"
+        );
+        let _ = writeln!(
+            o,
+            "| ----------------------- | --- | --- | ---- | ------------------------------- |"
+        );
         if let Some(s) = obj.subs.first() {
             let mut ty = s.data_type.cia_name().to_string();
             if s.string_length_min != 0 {
@@ -152,8 +168,14 @@ fn object_section(o: &mut String, index: u16, obj: &Object) {
             );
         }
     } else {
-        let _ = writeln!(o, "| Sub  | Name                  | Data Type  | SDO | PDO | SRDO | Default Value |");
-        let _ = writeln!(o, "| ---- | --------------------- | ---------- | --- | --- | ---- | ------------- |");
+        let _ = writeln!(
+            o,
+            "| Sub  | Name                  | Data Type  | SDO | PDO | SRDO | Default Value |"
+        );
+        let _ = writeln!(
+            o,
+            "| ---- | --------------------- | ---------- | --- | --- | ---- | ------------- |"
+        );
         for s in &obj.subs {
             let _ = writeln!(
                 o,
@@ -174,7 +196,12 @@ fn object_section(o: &mut String, index: u16, obj: &Object) {
         notes.push(&obj.description);
     }
     if obj.kind != ObjectKind::Var {
-        notes.extend(obj.subs.iter().map(|s| s.description.as_str()).filter(|d| !d.is_empty()));
+        notes.extend(
+            obj.subs
+                .iter()
+                .map(|s| s.description.as_str())
+                .filter(|d| !d.is_empty()),
+        );
     }
     if !notes.is_empty() {
         let _ = writeln!(o, "\n{}", notes.join("\n"));
@@ -184,7 +211,10 @@ fn object_section(o: &mut String, index: u16, obj: &Object) {
 pub fn generate(od: &ObjectDictionary, project_file: &str) -> String {
     let d = &od.device;
     let mut o = String::new();
-    let _ = writeln!(o, "CANopen device documentation\n============================");
+    let _ = writeln!(
+        o,
+        "CANopen device documentation\n============================"
+    );
     let _ = writeln!(o, "**{}**\n\n{}\n", d.product_name, d.description);
     let created = doc_time(&d.created);
     kv_table(

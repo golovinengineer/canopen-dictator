@@ -11,7 +11,11 @@ pub fn object_note(index: u16) -> String {
         Some(t) => format!(
             "CanFestival defines this index itself as \"{}\": names, types and access rights in the generated C come from its DS-301 table{}.",
             ds301::entry_name(t, index),
-            if t.callback { ", and callbacks are always generated" } else { "" }
+            if t.callback {
+                ", and callbacks are always generated"
+            } else {
+                ""
+            }
         ),
         None => String::new(),
     }

@@ -53,7 +53,11 @@ fn add_renumber_delete_object() {
     let mut e = fresh();
     e.set_filter("identity");
     assert_eq!(e.add_object("2000", "  ", "array").unwrap(), 0x2000);
-    assert_eq!(e.filter(), "", "adding clears the filter so the object shows");
+    assert_eq!(
+        e.filter(),
+        "",
+        "adding clears the filter so the object shows"
+    );
     assert_eq!(e.selected(), Some(0x2000));
     assert_eq!(e.od.objects[&0x2000].name, "New object");
     assert!(e.add_object("2000", "Again", "var").is_err());
@@ -77,7 +81,10 @@ fn index_and_setting_checks() {
     let e = fresh();
     assert!(e.index_ok("2000", None));
     assert!(!e.index_ok("1000", None));
-    assert!(e.index_ok("1000", Some(0x1000)), "an object's own index is fine");
+    assert!(
+        e.index_ok("1000", Some(0x1000)),
+        "an object's own index is fine"
+    );
     assert!(!e.index_ok("0x0100", None));
     assert!(e.setting_ok("node_id", "127"));
     assert!(!e.setting_ok("node_id", "128"));
@@ -95,8 +102,15 @@ fn settings_round_trip() {
     assert_eq!(e.od.device.baud_rates, vec![125, 250]);
     e.edit_setting("node_type", "master").unwrap();
     let fields = e.canfestival_fields();
-    assert_eq!(fields.iter().find(|f| f.key == "node_type").unwrap().value, "master");
-    let rates = e.device_fields().into_iter().find(|f| f.key == "baud_rates").unwrap();
+    assert_eq!(
+        fields.iter().find(|f| f.key == "node_type").unwrap().value,
+        "master"
+    );
+    let rates = e
+        .device_fields()
+        .into_iter()
+        .find(|f| f.key == "baud_rates")
+        .unwrap();
     assert_eq!(rates.value, "125, 250");
     assert!(e.edit_setting("nope", "1").is_err());
 }
@@ -110,7 +124,10 @@ fn change_kind_keeps_sub0_in_sync() {
     assert_eq!(o.subs.len(), 2);
     assert_eq!(o.subs[0].default, "0x01");
     assert_eq!(o.subs[1].sub, 1);
-    assert_eq!(o.subs[1].default, "0x00000000", "the VAR's value becomes element 1");
+    assert_eq!(
+        o.subs[1].default, "0x00000000",
+        "the VAR's value becomes element 1"
+    );
 
     e.edit_object("kind", "var").unwrap();
     let o = &e.od.objects[&0x1000];
@@ -133,7 +150,11 @@ fn add_and_delete_subs() {
     let o = &e.od.objects[&0x2000];
     assert_eq!(o.subs.len(), 3);
     assert_eq!(o.subs[0].default, "0x02");
-    assert_eq!(o.subs[2].data_type, DataType::U16, "array elements copy the previous one");
+    assert_eq!(
+        o.subs[2].data_type,
+        DataType::U16,
+        "array elements copy the previous one"
+    );
     assert_eq!(o.subs[2].default, "7");
     assert_eq!(e.selected_sub(), Some(2));
 
@@ -154,7 +175,13 @@ fn filter_groups_matching_objects() {
     let all = e.visible_objects();
     assert!(matches!(all[0], ListRow::Header(t) if t.starts_with("Communication")));
     e.set_filter("0x1018");
-    assert_eq!(e.visible_objects(), vec![ListRow::Header(canopen_dictator_core::editor::group_title(0x1018)), ListRow::Object(0x1018)]);
+    assert_eq!(
+        e.visible_objects(),
+        vec![
+            ListRow::Header(canopen_dictator_core::editor::group_title(0x1018)),
+            ListRow::Object(0x1018)
+        ]
+    );
     e.set_filter("no object is called this");
     assert!(e.visible_objects().is_empty());
 }
@@ -178,7 +205,10 @@ fn values_that_wont_export_are_refused() {
     e.select_object(Some(0x1000));
     e.select_sub(Some(0));
     let err = e.edit_sub("default", "0x1FFFFFFFF").unwrap_err();
-    assert_eq!(format!("{err:#}"), "Default not changed: 0x1FFFFFFFF does not fit UNSIGNED32");
+    assert_eq!(
+        format!("{err:#}"),
+        "Default not changed: 0x1FFFFFFFF does not fit UNSIGNED32"
+    );
     assert!(e.edit_sub("max", "lots").is_err());
     let s = e.selected_sub_object().unwrap();
     assert_eq!((s.default.as_str(), s.max.as_str()), ("0x00000000", ""));
@@ -188,7 +218,10 @@ fn values_that_wont_export_are_refused() {
     e.edit_sub("min", "").unwrap();
     e.edit_sub("max", "0xFFFFFFFF").unwrap();
     let s = e.selected_sub_object().unwrap();
-    assert_eq!((s.default.as_str(), s.max.as_str()), ("$NODEID+0x180", "0xFFFFFFFF"));
+    assert_eq!(
+        (s.default.as_str(), s.max.as_str()),
+        ("$NODEID+0x180", "0xFFFFFFFF")
+    );
 }
 
 #[test]
@@ -201,7 +234,10 @@ fn type_change_keeps_values_that_no_longer_fit() {
 
     e.edit_sub("type", "UNSIGNED8").unwrap();
     assert_eq!(e.selected_sub_object().unwrap().default, "300");
-    assert_eq!(e.value_problem().as_deref(), Some("Default 300 does not fit UNSIGNED8; fix it before exporting"));
+    assert_eq!(
+        e.value_problem().as_deref(),
+        Some("Default 300 does not fit UNSIGNED8; fix it before exporting")
+    );
 
     e.edit_sub("max", "255").unwrap();
     e.edit_sub("type", "INTEGER8").unwrap();
@@ -212,7 +248,10 @@ fn type_change_keeps_values_that_no_longer_fit() {
 
     // Both fit UNSIGNED16, which leaves the default above the maximum.
     e.edit_sub("type", "UNSIGNED16").unwrap();
-    assert_eq!(e.value_problem().as_deref(), Some("Default 300 is above the maximum 255; fix it before exporting"));
+    assert_eq!(
+        e.value_problem().as_deref(),
+        Some("Default 300 is above the maximum 255; fix it before exporting")
+    );
 }
 
 #[test]
@@ -225,8 +264,14 @@ fn default_outside_limits_is_kept_and_reported() {
     e.edit_sub("max", "100").unwrap();
     e.edit_sub("min", "60").unwrap();
     let s = e.selected_sub_object().unwrap();
-    assert_eq!((s.default.as_str(), s.min.as_str(), s.max.as_str()), ("50", "60", "100"));
-    assert_eq!(e.value_problem().as_deref(), Some("Default 50 is below the minimum 60; fix it before exporting"));
+    assert_eq!(
+        (s.default.as_str(), s.min.as_str(), s.max.as_str()),
+        ("50", "60", "100")
+    );
+    assert_eq!(
+        e.value_problem().as_deref(),
+        Some("Default 50 is below the minimum 60; fix it before exporting")
+    );
     assert!(!e.value_field_ok("default", "50"));
     assert!(e.value_field_ok("default", "70"));
     assert!(e.value_field_ok("min", "60"));
@@ -240,5 +285,8 @@ fn default_outside_limits_is_kept_and_reported() {
     // Type problems come first; limits aren't judged on values that don't fit.
     e.edit_sub("max", "300").unwrap();
     e.edit_sub("type", "UNSIGNED8").unwrap();
-    assert_eq!(e.value_problem().as_deref(), Some("Maximum 300 does not fit UNSIGNED8; fix it before exporting"));
+    assert_eq!(
+        e.value_problem().as_deref(),
+        Some("Maximum 300 does not fit UNSIGNED8; fix it before exporting")
+    );
 }

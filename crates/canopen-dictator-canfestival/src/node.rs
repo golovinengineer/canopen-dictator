@@ -171,7 +171,11 @@ impl CfNode {
                         "{ctx}: is a {} in the project but CanFestival defines \"{}\" as {}",
                         obj.kind.short(),
                         ds301::entry_name(t, index),
-                        if table_is_list { "an array/record" } else { "a var" }
+                        if table_is_list {
+                            "an array/record"
+                        } else {
+                            "a var"
+                        }
                     );
                 }
             }
@@ -180,16 +184,17 @@ impl CfNode {
             let describe = |sub: u8| -> Result<(String, DataType, &'static str, TableDefault)> {
                 let sctx = format!("{ctx} sub 0x{sub:02X}");
                 if let Some(t) = table
-                    && let Some(si) = ds301::sub_info(t, sub) {
-                        return Ok((
-                            ds301::format_name(si.name, pdo_number + 1, sub as i64),
-                            table_type(si.ty, &sctx)?,
-                            access_upper(si.access),
-                            si.default,
-                        ));
-                    }
-                    // Beyond what the table describes: CanFestival itself
-                    // fails here; fall back to the project's description.
+                    && let Some(si) = ds301::sub_info(t, sub)
+                {
+                    return Ok((
+                        ds301::format_name(si.name, pdo_number + 1, sub as i64),
+                        table_type(si.ty, &sctx)?,
+                        access_upper(si.access),
+                        si.default,
+                    ));
+                }
+                // Beyond what the table describes: CanFestival itself
+                // fails here; fall back to the project's description.
                 Ok(match obj.sub(sub) {
                     Some(s) if !is_list => (
                         obj.name.clone(),
@@ -231,7 +236,9 @@ impl CfNode {
                         Some(s) => parse_default(&s.default, data_type, cf.node_id, &sctx)?,
                         None => None,
                     };
-                    given.unwrap_or_else(|| table_default(default, data_type, cf.node_id, pdo_number))
+                    given.unwrap_or_else(|| {
+                        table_default(default, data_type, cf.node_id, pdo_number)
+                    })
                 };
                 subs.push(CfSub {
                     name,

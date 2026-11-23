@@ -7,6 +7,8 @@
 
 # Dictator
 
+[![CI](https://github.com/golovinengineer/canopen-dictator/actions/workflows/ci.yml/badge.svg)](https://github.com/golovinengineer/canopen-dictator/actions/workflows/ci.yml)
+
 A cross-platform CANopen object dictionary editor. You edit the dictionary
 in a plain-text project file that stays readable in git diffs. Dictator
 imports existing projects from other tools, and from the project file it
@@ -17,19 +19,15 @@ It runs as a desktop window (Slint) or as a terminal UI (Ratatui) from the
 same binary. A small command line handles imports and exports in scripts and
 CI.
 
-```
-┌ Objects ──────────────────┬ 0x1800 TPDO communication parameter ─┬ Sub 0x01 ──────────────┐
-│ Communication             │ Index     1800                        │ Name     COB-ID used…  │
-│  1000 Device type         │ Name      TPDO communication param…   │ Type     UNSIGNED32    │
-│  1001 Error register      │ Kind      RECORD                      │ Access   rw            │
-│  1017 Producer heartbeat  │ Sub  Name                    Default  │ Default  $NODEID+0x180 │
-│ ▸1800 TPDO communication  │ 00   Highest sub-index su…   0x06     │ PDO      no            │
-│  1A00 TPDO mapping param… │ 01   COB-ID used by TPDO     $NODEID… │                        │
-│ Manufacturer              │ 02   Transmission type       254      │                        │
-│  2000 …                   │ 03   Inhibit time            0        │                        │
-└───────────────────────────┴───────────────────────────────────────┴────────────────────────┘
- example.objdict.toml                                              ↑↓ move  ⏎ edit  ? help
-```
+<p align="center">
+  <img src="docs/screenshots/gui.png" alt="Dictator's desktop window with the example project open" width="900">
+  <br><em>The desktop window</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/tui.png" alt="Dictator's terminal UI with the example project open" width="900">
+  <br><em>The terminal UI, same binary</em>
+</p>
 
 ## Why
 
@@ -76,12 +74,19 @@ CANopenNode v4 `OD.c`/`OD.h`, XDD export and EDS import are planned; see
 
 ## Installing
 
-Dictator is not packaged yet. Build it from source with a recent stable Rust
-toolchain (the crates use edition 2024):
+Dictator is not packaged as a macOS app yet. With a recent stable Rust
+toolchain (the crates use edition 2024), install it from crates.io; the
+package is `canopen-dictator`, the command it installs is `dictator`:
+
+```sh
+cargo install canopen-dictator --version 0.1.0-alpha.1
+```
+
+Or build it from source:
 
 ```sh
 git clone https://github.com/golovinengineer/canopen-dictator.git
-cd dictator
+cd canopen-dictator
 cargo install --path .
 ```
 
@@ -345,7 +350,7 @@ cargo run -- --gui path/to/project    # the window (a plain `cargo run` in a ter
 
 | Crate | Contents | Licence |
 | --- | --- | --- |
-| `dictator` (repository root) | GUI, terminal UI and command line | MIT OR Apache-2.0 |
+| `canopen-dictator` (repository root) | GUI, terminal UI and command line (the `dictator` binary) | MIT OR Apache-2.0 |
 | `crates/canopen-dictator-core` | model, project file, editing session, XDD import, EDS and Markdown export | MIT OR Apache-2.0 |
 | `crates/canopen-dictator-canfestival` | CanFestival C generator, `.od` import and export, a port of CanFestival `objdictgen` | LGPL-2.1-or-later |
 

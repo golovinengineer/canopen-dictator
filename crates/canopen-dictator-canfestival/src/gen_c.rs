@@ -74,7 +74,11 @@ fn str_len(v: &Value) -> usize {
 
 /// `GetValidTypeInfos`.
 fn type_info(t: DataType, items: &[&Value], default_string_size: usize) -> Result<TypeInfo> {
-    let plain = |c: &str, od: &str| TypeInfo { c: c.into(), size: None, od: od.into() };
+    let plain = |c: &str, od: &str| TypeInfo {
+        c: c.into(),
+        size: None,
+        od: od.into(),
+    };
     Ok(match t {
         DataType::Boolean => plain("UNS8", "boolean"),
         DataType::U8 => plain("UNS8", "uint8"),
@@ -89,7 +93,12 @@ fn type_info(t: DataType, items: &[&Value], default_string_size: usize) -> Resul
         DataType::Real64 => plain("REAL64", "real64"),
         DataType::VisibleString | DataType::OctetString => TypeInfo {
             c: "char".into(),
-            size: Some(items.iter().map(|v| str_len(v)).fold(default_string_size, usize::max)),
+            size: Some(
+                items
+                    .iter()
+                    .map(|v| str_len(v))
+                    .fold(default_string_size, usize::max),
+            ),
             od: "visible_string".into(),
         },
         DataType::Domain => TypeInfo {
@@ -113,7 +122,11 @@ fn compute_value(od_type: &str, v: &Value) -> (String, String) {
         Value::Str(s) => (format!("\"{s}\""), String::new()),
         Value::Real(f) => (format!("{f:.6}"), String::new()),
         Value::Int(i) => {
-            let lit = if *i < 0 { format!("-0x{:X}", -i) } else { format!("0x{i:X}") };
+            let lit = if *i < 0 {
+                format!("-0x{:X}", -i)
+            } else {
+                format!("0x{i:X}")
+            };
             (lit, format!("\t/* {i} */"))
         }
     }
@@ -128,7 +141,9 @@ fn typed(c_type: &str, access: &str) -> String {
 }
 
 fn ascii(name: &str) -> String {
-    name.chars().map(|c| if c.is_ascii() { c } else { '?' }).collect()
+    name.chars()
+        .map(|c| if c.is_ascii() { c } else { '?' })
+        .collect()
 }
 
 struct Gen<'a> {
@@ -150,7 +165,11 @@ impl Gen<'_> {
         let identical = e.structure & OD_IDENTICAL_SUBINDEXES != 0;
         let mut s = String::new();
         if variable {
-            let _ = writeln!(s, "\n/* index 0x{index:04X} :   Mapped variable {} */", ascii(&e.name));
+            let _ = writeln!(
+                s,
+                "\n/* index 0x{index:04X} :   Mapped variable {} */",
+                ascii(&e.name)
+            );
         } else {
             let _ = writeln!(s, "\n/* index 0x{index:04X} :   {}. */", ascii(&e.name));
         }
@@ -173,7 +192,10 @@ impl Gen<'_> {
                     "{ty} {n}_{name}{suffix} = {value};\t\t/* Mapped at index 0x{index:04X}, subindex 0x00 */"
                 );
             } else {
-                let _ = writeln!(s, "                    {ty} {n}_obj{index:04X}{suffix} = {value};{comment}");
+                let _ = writeln!(
+                    s,
+                    "                    {ty} {n}_obj{index:04X}{suffix} = {value};{comment}"
+                );
             }
         } else {
             let ti = self.type_info(sub0, &[])?;
@@ -186,7 +208,10 @@ impl Gen<'_> {
             if identical {
                 // CanFestival "rec": all sub-entries share one description.
                 let Some(sub1) = e.subs.get(1) else {
-                    bail!("object 0x{index:04X}: \"{}\" needs at least one sub-entry", e.name);
+                    bail!(
+                        "object 0x{index:04X}: \"{}\" needs at least one sub-entry",
+                        e.name
+                    );
                 };
                 let ti = self.type_info(sub1, &values[1..])?;
                 let ty = typed(&ti.c, sub1.access);
@@ -203,24 +228,42 @@ impl Gen<'_> {
                 if variable {
                     let name = undigit(format_name(&e.name));
                     if is_const {
-                        let _ = writeln!(self.header_decls, "extern {ty}{type_suffix} {n}_{name}[{last}];\t\t/* Mapped at index 0x{index:04X}, subindex 0x01 - 0x{length:02X} */");
-                        let _ = writeln!(self.mapped, "{ty}{type_suffix} {n}_{name}[] =\t\t/* Mapped at index 0x{index:04X}, subindex 0x01 - 0x{length:02X} */\n  {{");
+                        let _ = writeln!(
+                            self.header_decls,
+                            "extern {ty}{type_suffix} {n}_{name}[{last}];\t\t/* Mapped at index 0x{index:04X}, subindex 0x01 - 0x{length:02X} */"
+                        );
+                        let _ = writeln!(
+                            self.mapped,
+                            "{ty}{type_suffix} {n}_{name}[] =\t\t/* Mapped at index 0x{index:04X}, subindex 0x01 - 0x{length:02X} */\n  {{"
+                        );
                     } else {
-                        let _ = writeln!(self.header_decls, "extern {ty} {n}_{name}[{last}]{suffix};\t\t/* Mapped at index 0x{index:04X}, subindex 0x01 - 0x{length:02X} */");
-                        let _ = writeln!(self.mapped, "{ty} {n}_{name}[]{suffix} =\t\t/* Mapped at index 0x{index:04X}, subindex 0x01 - 0x{length:02X} */\n  {{");
+                        let _ = writeln!(
+                            self.header_decls,
+                            "extern {ty} {n}_{name}[{last}]{suffix};\t\t/* Mapped at index 0x{index:04X}, subindex 0x01 - 0x{length:02X} */"
+                        );
+                        let _ = writeln!(
+                            self.mapped,
+                            "{ty} {n}_{name}[]{suffix} =\t\t/* Mapped at index 0x{index:04X}, subindex 0x01 - 0x{length:02X} */\n  {{"
+                        );
                     }
                     for (i, sub) in e.subs.iter().enumerate().skip(1) {
                         let sep = if i == last { "" } else { "," };
                         let (value, comment) = compute_value(&ti.od, &sub.value);
                         if is_const && ti.od == "visible_string" {
-                            let _ = writeln!(self.mapped, "    (const CONSTSTORE char[]){{{value}}}{sep}{comment}");
+                            let _ = writeln!(
+                                self.mapped,
+                                "    (const CONSTSTORE char[]){{{value}}}{sep}{comment}"
+                            );
                         } else {
                             let _ = writeln!(self.mapped, "    {value}{sep}{comment}");
                         }
                     }
                     self.mapped.push_str("  };\n");
                 } else {
-                    let _ = writeln!(s, "                    {ty}{type_suffix} {n}_obj{index:04X}[] = \n                    {{");
+                    let _ = writeln!(
+                        s,
+                        "                    {ty}{type_suffix} {n}_obj{index:04X}[] = \n                    {{"
+                    );
                     for (i, sub) in e.subs.iter().enumerate().skip(1) {
                         let sep = if i == last { "" } else { "," };
                         let (value, comment) = compute_value(&ti.od, &sub.value);
@@ -238,10 +281,19 @@ impl Gen<'_> {
                     let (value, comment) = compute_value(&ti.od, &sub.value);
                     let name = format_name(&sub.name);
                     if variable {
-                        let _ = writeln!(self.header_decls, "extern {ty} {n}_{parent}_{name}{suffix};\t\t/* Mapped at index 0x{index:04X}, subindex 0x{i:02X} */");
-                        let _ = writeln!(self.mapped, "{ty} {n}_{parent}_{name}{suffix} = {value};\t\t/* Mapped at index 0x{index:04X}, subindex 0x{i:02X} */");
+                        let _ = writeln!(
+                            self.header_decls,
+                            "extern {ty} {n}_{parent}_{name}{suffix};\t\t/* Mapped at index 0x{index:04X}, subindex 0x{i:02X} */"
+                        );
+                        let _ = writeln!(
+                            self.mapped,
+                            "{ty} {n}_{parent}_{name}{suffix} = {value};\t\t/* Mapped at index 0x{index:04X}, subindex 0x{i:02X} */"
+                        );
                     } else {
-                        let _ = writeln!(s, "                    {ty} {n}_obj{index:04X}_{name}{suffix} = {value};{comment}");
+                        let _ = writeln!(
+                            s,
+                            "                    {ty} {n}_obj{index:04X}_{name}{suffix} = {value};{comment}"
+                        );
                     }
                 }
             }
@@ -255,7 +307,10 @@ impl Gen<'_> {
             } else {
                 format!("{n}_Index{index:04X}")
             });
-            let _ = writeln!(s, "                    ODCallback_t {name}_callbacks[] = \n                     {{");
+            let _ = writeln!(
+                s,
+                "                    ODCallback_t {name}_callbacks[] = \n                     {{"
+            );
             for _ in &e.subs {
                 s.push_str("                       NULL,\n");
             }
@@ -264,7 +319,10 @@ impl Gen<'_> {
         }
 
         // Subindex table.
-        let _ = writeln!(s, "                    const CONSTSTORE subindex {n}_Index{index:04X}[] = \n                     {{");
+        let _ = writeln!(
+            s,
+            "                    const CONSTSTORE subindex {n}_Index{index:04X}[] = \n                     {{"
+        );
         for (i, sub) in e.subs.iter().enumerate() {
             let sep = if i + 1 < e.subs.len() { "," } else { "" };
             let mut ti = if identical {
@@ -274,7 +332,11 @@ impl Gen<'_> {
             };
             let name = if i == 0 {
                 if index == 0x1003 {
-                    ti = TypeInfo { c: "UNS8".into(), size: None, od: "valueRange_EMC".into() };
+                    ti = TypeInfo {
+                        c: "UNS8".into(),
+                        size: None,
+                        od: "valueRange_EMC".into(),
+                    };
                 }
                 if e.structure & OD_MULTIPLE_SUBINDEXES != 0 {
                     format!("highestSubIndex_obj{index:04X}")
@@ -295,12 +357,18 @@ impl Gen<'_> {
                 format!("obj{index:04X}_{}", format_name(&sub.name))
             };
             let sizeof = match ti.od.as_str() {
-                "visible_string" => str_len(&sub.value).max(self.node.default_string_size).to_string(),
+                "visible_string" => str_len(&sub.value)
+                    .max(self.node.default_string_size)
+                    .to_string(),
                 "domain" => str_len(&sub.value).to_string(),
                 _ => format!("sizeof ({})", ti.c),
             };
             let save = if sub.save { "|TO_BE_SAVE" } else { "" };
-            let pointer = if sub.access == "CONST" { ".pObjectConst" } else { ".pObject" };
+            let pointer = if sub.access == "CONST" {
+                ".pObjectConst"
+            } else {
+                ".pObject"
+            };
             let _ = writeln!(
                 s,
                 "                       {{ {}{save}, {}, {sizeof}, {pointer}=&{n}_{} }}{sep}",
@@ -317,7 +385,11 @@ impl Gen<'_> {
 /// Variables CanFestival's stack references even when the entry is absent.
 fn particular_parameters(node: &CfNode, contents: &mut BTreeMap<u16, String>) {
     let n = &node.name;
-    let name = |index: u16| ds301::find(index).map(|e| ds301::entry_name(e, index)).unwrap_or_default();
+    let name = |index: u16| {
+        ds301::find(index)
+            .map(|e| ds301::entry_name(e, index))
+            .unwrap_or_default()
+    };
     let mut add = |index: u16, text: String| {
         if !node.entries.contains_key(&index) {
             contents.insert(index, text);
@@ -341,35 +413,56 @@ fn particular_parameters(node: &CfNode, contents: &mut BTreeMap<u16, String>) {
                        {{ RO, uint32, sizeof (UNS32), .pObject=(void*)&{n}_obj1003[0] }}
                      }};
 ", name = name(0x1003)));
-    add(0x1005, format!(
-        "\n/* index 0x1005 :   {} */\n                    UNS32 {n}_obj1005 = 0x0;   /* 0 */\n",
-        name(0x1005)
-    ));
-    add(0x1006, format!(
-        "\n/* index 0x1006 :   {} */\n                    UNS32 {n}_obj1006 = 0x0;   /* 0 */\n",
-        name(0x1006)
-    ));
-    add(0x1014, format!(
-        "\n/* index 0x1014 :   {} */\n                    UNS32 {n}_obj1014 = 0x80 + 0x{:02X};   /* 128 + NodeID */\n",
-        name(0x1014),
-        node.id
-    ));
-    add(0x1016, format!(
-        "\n/* index 0x1016 :   {} */\n                    UNS8 {n}_highestSubIndex_obj1016 = 0;\n                    UNS32 {n}_obj1016[]={{0}};\n",
-        name(0x1016)
-    ));
-    add(0x1017, format!(
-        "\n/* index 0x1017 :   {} */ \n                    UNS16 {n}_obj1017 = 0x0;   /* 0 */\n",
-        name(0x1017)
-    ));
-    add(0x100C, format!(
-        "\n/* index 0x100C :   {} */ \n                    UNS16 {n}_obj100C = 0x0;   /* 0 */\n",
-        name(0x100C)
-    ));
-    add(0x100D, format!(
-        "\n/* index 0x100D :   {} */ \n                    UNS8 {n}_obj100D = 0x0;   /* 0 */\n",
-        name(0x100D)
-    ));
+    add(
+        0x1005,
+        format!(
+            "\n/* index 0x1005 :   {} */\n                    UNS32 {n}_obj1005 = 0x0;   /* 0 */\n",
+            name(0x1005)
+        ),
+    );
+    add(
+        0x1006,
+        format!(
+            "\n/* index 0x1006 :   {} */\n                    UNS32 {n}_obj1006 = 0x0;   /* 0 */\n",
+            name(0x1006)
+        ),
+    );
+    add(
+        0x1014,
+        format!(
+            "\n/* index 0x1014 :   {} */\n                    UNS32 {n}_obj1014 = 0x80 + 0x{:02X};   /* 128 + NodeID */\n",
+            name(0x1014),
+            node.id
+        ),
+    );
+    add(
+        0x1016,
+        format!(
+            "\n/* index 0x1016 :   {} */\n                    UNS8 {n}_highestSubIndex_obj1016 = 0;\n                    UNS32 {n}_obj1016[]={{0}};\n",
+            name(0x1016)
+        ),
+    );
+    add(
+        0x1017,
+        format!(
+            "\n/* index 0x1017 :   {} */ \n                    UNS16 {n}_obj1017 = 0x0;   /* 0 */\n",
+            name(0x1017)
+        ),
+    );
+    add(
+        0x100C,
+        format!(
+            "\n/* index 0x100C :   {} */ \n                    UNS16 {n}_obj100C = 0x0;   /* 0 */\n",
+            name(0x100C)
+        ),
+    );
+    add(
+        0x100D,
+        format!(
+            "\n/* index 0x100D :   {} */ \n                    UNS8 {n}_obj100D = 0x0;   /* 0 */\n",
+            name(0x100D)
+        ),
+    );
 }
 
 pub fn generate_from_node(node: &CfNode, header_name: &str) -> Result<(String, String)> {
@@ -379,7 +472,12 @@ pub fn generate_from_node(node: &CfNode, header_name: &str) -> Result<(String, S
         NodeType::Master => "DEVICE_TYPE_MASTER",
     };
 
-    let mut g = Gen { node, n, mapped: String::new(), header_decls: String::new() };
+    let mut g = Gen {
+        node,
+        n,
+        mapped: String::new(),
+        header_decls: String::new(),
+    };
     let list: Vec<(u16, &CfEntry)> = node
         .entries
         .iter()
@@ -396,7 +494,11 @@ pub fn generate_from_node(node: &CfNode, header_name: &str) -> Result<(String, S
     }
     particular_parameters(node, &mut contents);
 
-    let heartbeat_timers = node.entries.get(&0x1016).map(|e| e.subs.len() - 1).unwrap_or(0);
+    let heartbeat_timers = node
+        .entries
+        .get(&0x1016)
+        .map(|e| e.subs.len() - 1)
+        .unwrap_or(0);
 
     // Navigation tables.
     let mut declare_index = String::new();
@@ -405,8 +507,15 @@ pub fn generate_from_node(node: &CfNode, header_name: &str) -> Result<(String, S
     let mut last = [0usize; 6];
     let mut max_pdo_transmit = 0;
     for (i, (index, _)) in list.iter().enumerate() {
-        let _ = writeln!(declare_index, "  {{ (const CONSTSTORE subindex* const){n}_Index{index:04X},sizeof({n}_Index{index:04X})/sizeof({n}_Index{index:04X}[0]), 0x{index:04X}}},");
-        let _ = writeln!(declare_switch, "\t\tcase 0x{index:04X}: i = {i};{}break;", callbacks[index]);
+        let _ = writeln!(
+            declare_index,
+            "  {{ (const CONSTSTORE subindex* const){n}_Index{index:04X},sizeof({n}_Index{index:04X})/sizeof({n}_Index{index:04X}[0]), 0x{index:04X}}},"
+        );
+        let _ = writeln!(
+            declare_switch,
+            "\t\tcase 0x{index:04X}: i = {i};{}break;",
+            callbacks[index]
+        );
         for (c, (cat, lo, hi)) in CATEGORIES.iter().enumerate() {
             if lo <= index && index <= hi {
                 last[c] = i;
@@ -422,7 +531,10 @@ pub fn generate_from_node(node: &CfNode, header_name: &str) -> Result<(String, S
     let max_pdo_transmit = max_pdo_transmit.max(1);
     let mut quick_index = String::new();
     for (label, table) in [("firstIndex", &first), ("lastIndex", &last)] {
-        let _ = writeln!(quick_index, "\nconst CONSTSTORE quick_index {n}_{label} = {{");
+        let _ = writeln!(
+            quick_index,
+            "\nconst CONSTSTORE quick_index {n}_{label} = {{"
+        );
         for (c, (cat, _, _)) in CATEGORIES.iter().enumerate() {
             let sep = if c == CATEGORIES.len() - 1 { "" } else { "," };
             let _ = writeln!(quick_index, "  {}{sep} /* {cat} */", table[c]);
@@ -434,18 +546,20 @@ pub fn generate_from_node(node: &CfNode, header_name: &str) -> Result<(String, S
     let mut c = String::new();
     let _ = write!(c, "{GENERATED_TAG}\n#include \"{header_name}\"\n");
     c.push_str(
-"
+        "
 /**************************************************************************/
 /* Declaration of mapped variables                                        */
 /**************************************************************************/
-");
+",
+    );
     c.push_str(&g.mapped);
     c.push_str(
-"
+        "
 /**************************************************************************/
 /* Declaration of value range types                                       */
 /**************************************************************************/
-");
+",
+    );
     let _ = write!(c,
 "
 #define valueRange_EMC 0x9F /* Type for index 0x1003 subindex 0x00 (only set of value 0 is possible) */
@@ -459,8 +573,9 @@ UNS32 {n}_valueRangeTest (UNS8 typeValue, void * value)
   return 0;
 }}
 ");
-    let _ = write!(c,
-"
+    let _ = write!(
+        c,
+        "
 /**************************************************************************/
 /* The node id                                                            */
 /**************************************************************************/
@@ -472,15 +587,20 @@ UNS8 {n}_bDeviceNodeId = 0x{id:02X};
 
 const UNS8 {n}_device_type = {device_type};
 
-", id = node.id);
+",
+        id = node.id
+    );
     if heartbeat_timers > 0 {
         let init = vec!["TIMER_NONE"; heartbeat_timers].join(",");
-        let _ = writeln!(c, "TIMER_HANDLE {n}_heartBeatTimers[{heartbeat_timers}] = {{{init}}};");
+        let _ = writeln!(
+            c,
+            "TIMER_HANDLE {n}_heartBeatTimers[{heartbeat_timers}] = {{{init}}};"
+        );
     } else {
         let _ = writeln!(c, "TIMER_HANDLE {n}_heartBeatTimers[1];");
     }
     c.push_str(
-"
+        "
 /*
 $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
@@ -488,16 +608,18 @@ $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 */
-");
+",
+    );
     for text in contents.values() {
         c.push_str(text);
     }
     c.push_str(
-"
+        "
 /**************************************************************************/
 /* Declaration of pointed variables                                       */
 /**************************************************************************/
-");
+",
+    );
     let _ = write!(c, "\nconst CONSTSTORE indextable {n}_objdict[] = \n{{\n");
     c.push_str(&declare_index);
     let _ = write!(c,
@@ -510,8 +632,9 @@ const CONSTSTORE indextable * {n}_scanIndexOD (UNS16 wIndex, UNS32 * errorCode, 
 	switch(wIndex){{
 ");
     c.push_str(&declare_switch);
-    let _ = write!(c,
-"		default:
+    let _ = write!(
+        c,
+        "		default:
 			*errorCode = OD_NO_SUCH_OBJECT;
 			return NULL;
 	}}
@@ -524,17 +647,20 @@ const CONSTSTORE indextable * {n}_scanIndexOD (UNS16 wIndex, UNS32 * errorCode, 
  * Even if no pdoTransmit are defined, at least one entry is computed
  * for compilations issues.
  */
-s_PDO_status {n}_PDO_status[{max_pdo_transmit}] = {{");
+s_PDO_status {n}_PDO_status[{max_pdo_transmit}] = {{"
+    );
     c.push_str(&vec!["s_PDO_status_Initializer"; max_pdo_transmit].join(","));
     c.push_str("};\n");
     c.push_str(&quick_index);
-    let _ = write!(c,
-"
+    let _ = write!(
+        c,
+        "
 const CONSTSTORE UNS16 {n}_ObjdictSize = sizeof({n}_objdict)/sizeof({n}_objdict[0]);
 
 CO_Data {n}_Data = CANOPEN_NODE_DATA_INITIALIZER({n});
 
-");
+"
+    );
 
     // ---------------------------------------------------------------- .h
     let guard = header_name.replace('.', "_").to_uppercase();

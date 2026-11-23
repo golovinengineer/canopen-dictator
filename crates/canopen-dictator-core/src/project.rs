@@ -283,7 +283,10 @@ pub fn from_toml(text: &str) -> Result<ObjectDictionary> {
     let mut od = ObjectDictionary::default();
     let empty = Table::new();
 
-    let d = root.get("device").and_then(Value::as_table).unwrap_or(&empty);
+    let d = root
+        .get("device")
+        .and_then(Value::as_table)
+        .unwrap_or(&empty);
     od.device = DeviceInfo {
         vendor_name: get_str(d, "vendor_name"),
         vendor_id: get_value(d, "vendor_id"),
@@ -311,7 +314,12 @@ pub fn from_toml(text: &str) -> Result<ObjectDictionary> {
         dummy_usage: d
             .get("dummy_usage")
             .and_then(Value::as_array)
-            .map(|a| a.iter().filter_map(|v| v.as_integer()).map(|v| v as u16).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_integer())
+                    .map(|v| v as u16)
+                    .collect()
+            })
             .unwrap_or_default(),
     };
 
@@ -329,7 +337,10 @@ pub fn from_toml(text: &str) -> Result<ObjectDictionary> {
         default_string_size: get_int(c, "default_string_size").unwrap_or(10) as u32,
     };
 
-    let objects = root.get("object").and_then(Value::as_table).unwrap_or(&empty);
+    let objects = root
+        .get("object")
+        .and_then(Value::as_table)
+        .unwrap_or(&empty);
     for (key, value) in objects {
         let index = parse_hex_key(key)
             .filter(|i| *i <= 0xFFFF)
@@ -368,12 +379,14 @@ pub fn from_toml(text: &str) -> Result<ObjectDictionary> {
                 if obj.subs.iter().any(|s| s.sub == sub) {
                     bail!("{sctx}: defined twice");
                 }
-                obj.subs.push(read_sub(st, sub, get_str(st, "name"), &sctx)?);
+                obj.subs
+                    .push(read_sub(st, sub, get_str(st, "name"), &sctx)?);
             }
             obj.subs.sort_by_key(|s| s.sub);
             if let Some(doc) = t.get("doc").and_then(Value::as_table) {
                 for (k, v) in doc {
-                    let sub = parse_hex_key(k).ok_or_else(|| anyhow!("{ctx}: bad doc key {k:?}"))?;
+                    let sub =
+                        parse_hex_key(k).ok_or_else(|| anyhow!("{ctx}: bad doc key {k:?}"))?;
                     if let Some(s) = obj.subs.iter_mut().find(|s| s.sub as u32 == sub) {
                         s.description = v.as_str().unwrap_or_default().to_string();
                     }
