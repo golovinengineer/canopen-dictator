@@ -78,12 +78,19 @@ CANopenNode v4 `OD.c`/`OD.h`, XDD export and EDS import are planned; see
 
 ## Installing
 
-Dictator is not packaged yet. Build it from source with a recent stable Rust
-toolchain (the crates use edition 2024):
+Dictator is not packaged as a macOS app yet. With a recent stable Rust
+toolchain (the crates use edition 2024), install it from crates.io; the
+package is `canopen-dictator`, the command it installs is `dictator`:
+
+```sh
+cargo install canopen-dictator --version 0.1.0-alpha.1
+```
+
+Or build it from source:
 
 ```sh
 git clone https://github.com/golovinengineer/canopen-dictator.git
-cd dictator
+cd canopen-dictator
 cargo install --path .
 ```
 
@@ -347,7 +354,7 @@ cargo run -- --gui path/to/project    # the window (a plain `cargo run` in a ter
 
 | Crate | Contents | Licence |
 | --- | --- | --- |
-| `dictator` (repository root) | GUI, terminal UI and command line | MIT OR Apache-2.0 |
+| `canopen-dictator` (repository root) | GUI, terminal UI and command line (the `dictator` binary) | MIT OR Apache-2.0 |
 | `crates/canopen-dictator-core` | model, project file, editing session, XDD import, EDS and Markdown export | MIT OR Apache-2.0 |
 | `crates/canopen-dictator-canfestival` | CanFestival C generator, `.od` import and export, a port of CanFestival `objdictgen` | LGPL-2.1-or-later |
 
