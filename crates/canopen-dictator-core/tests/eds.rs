@@ -2,7 +2,7 @@
 
 mod common;
 
-use dictator_core::export::eds;
+use canopen_dictator_core::export::eds;
 
 /// Lines that legitimately differ: the sample was exported at a later time
 /// than the project was created, and we keep no modification timestamp.

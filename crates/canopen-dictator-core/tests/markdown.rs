@@ -2,7 +2,7 @@
 
 mod common;
 
-use dictator_core::export::markdown;
+use canopen_dictator_core::export::markdown;
 
 /// Drop CRs (the reference mixes CRLF and LF) and the lines that name the
 /// generating tool, the project file and the modification time. .NET on

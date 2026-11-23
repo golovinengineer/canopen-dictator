@@ -2,8 +2,8 @@
 
 mod common;
 
-use dictator_core::model::*;
-use dictator_core::project;
+use canopen_dictator_core::model::*;
+use canopen_dictator_core::project;
 
 #[test]
 fn xdd_import_reads_sample() {

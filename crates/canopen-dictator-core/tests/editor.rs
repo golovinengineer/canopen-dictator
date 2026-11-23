@@ -2,8 +2,8 @@
 
 mod common;
 
-use dictator_core::editor::{Editor, ListRow, parse_hex_index, value_ok};
-use dictator_core::model::*;
+use canopen_dictator_core::editor::{Editor, ListRow, parse_hex_index, value_ok};
+use canopen_dictator_core::model::*;
 
 fn fresh() -> Editor {
     Editor::new(ObjectDictionary::new_default(), None, false)
@@ -154,7 +154,7 @@ fn filter_groups_matching_objects() {
     let all = e.visible_objects();
     assert!(matches!(all[0], ListRow::Header(t) if t.starts_with("Communication")));
     e.set_filter("0x1018");
-    assert_eq!(e.visible_objects(), vec![ListRow::Header(dictator_core::editor::group_title(0x1018)), ListRow::Object(0x1018)]);
+    assert_eq!(e.visible_objects(), vec![ListRow::Header(canopen_dictator_core::editor::group_title(0x1018)), ListRow::Object(0x1018)]);
     e.set_filter("no object is called this");
     assert!(e.visible_objects().is_empty());
 }

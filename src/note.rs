@@ -2,7 +2,7 @@
 
 //! Remarks about an object that every front end shows next to it.
 
-use dictator_canfestival::ds301;
+use canopen_dictator_canfestival::ds301;
 
 /// Why edits to `index` may not show in the generated C: CanFestival
 /// defines some communication objects itself. Empty for other indexes.

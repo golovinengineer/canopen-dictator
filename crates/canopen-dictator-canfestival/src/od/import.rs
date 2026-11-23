@@ -10,7 +10,7 @@ use anyhow::{Context, Result, anyhow, bail};
 
 use super::pickle::{Py, parse_pickle};
 use crate::ds301::{self, OD_IDENTICAL_INDEXES, OD_IDENTICAL_SUBINDEXES, OD_MULTIPLE_SUBINDEXES};
-use dictator_core::model::*;
+use canopen_dictator_core::model::*;
 
 /// The imported project plus what could not be carried over.
 #[derive(Debug)]

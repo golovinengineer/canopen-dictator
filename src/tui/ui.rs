@@ -9,8 +9,8 @@ use ratatui::style::{Color, Modifier, Style, Stylize};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, BorderType, Cell, Clear, List, ListItem, Paragraph, Row, Table, Wrap};
 
-use dictator_core::editor::ListRow;
-use dictator_core::model::PdoMapping;
+use canopen_dictator_core::editor::ListRow;
+use canopen_dictator_core::model::PdoMapping;
 
 use super::app::{App, Confirm, ExportKind, Field, FieldKind, Focus, MakeTarget, Mode, Screen, Target};
 use crate::note::object_note;

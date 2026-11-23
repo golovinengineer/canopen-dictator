@@ -10,9 +10,9 @@ use anyhow::{Result, anyhow};
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::widgets::{ListState, TableState};
 
-use dictator_core::editor::{Editor, ListRow, SettingField, value_ok};
-use dictator_core::model::*;
-use dictator_core::project;
+use canopen_dictator_core::editor::{Editor, ListRow, SettingField, value_ok};
+use canopen_dictator_core::model::*;
+use canopen_dictator_core::project;
 
 use super::input::{Input, complete_path, display_path, expand};
 use crate::io;
@@ -349,7 +349,7 @@ impl App {
     /// Why `input_ok` refuses `text`.
     fn input_problem(&self, target: &Target, text: &str) -> String {
         match target {
-            Target::Object("index") => match dictator_core::editor::parse_hex_index(text) {
+            Target::Object("index") => match canopen_dictator_core::editor::parse_hex_index(text) {
                 Ok(i) => format!("index 0x{i:04X} is already used"),
                 Err(e) => format!("{e:#}"),
             },
@@ -359,7 +359,7 @@ impl App {
             },
             Target::Setting(key) => {
                 let mut od = self.ed.od.clone();
-                dictator_core::editor::apply_setting(&mut od, key, text).err().map(|e| format!("{e:#}")).unwrap_or_default()
+                canopen_dictator_core::editor::apply_setting(&mut od, key, text).err().map(|e| format!("{e:#}")).unwrap_or_default()
             }
             _ => String::new(),
         }
@@ -861,7 +861,7 @@ impl App {
         let text = input.text().trim().to_string();
         if !self.prompt_ok(&prompt, &text) {
             let why = match prompt {
-                Prompt::NewIndex => match dictator_core::editor::parse_hex_index(&text) {
+                Prompt::NewIndex => match canopen_dictator_core::editor::parse_hex_index(&text) {
                     Ok(i) => format!("index 0x{i:04X} is already used"),
                     Err(e) => format!("{e:#}"),
                 },

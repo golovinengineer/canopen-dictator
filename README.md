@@ -72,7 +72,7 @@ Dictator aims to be one editor for all of them:
 | Markdown documentation | | ✓ | CANopenEditor's layout |
 
 CANopenNode v4 `OD.c`/`OD.h`, XDD export and EDS import are planned; see
-[the issue tracker](https://github.com/golovinengineer/dictator/issues).
+[the issue tracker](https://github.com/golovinengineer/canopen-dictator/issues).
 
 ## Installing
 
@@ -80,7 +80,7 @@ Dictator is not packaged yet. Build it from source with a recent stable Rust
 toolchain (the crates use edition 2024):
 
 ```sh
-git clone https://github.com/golovinengineer/dictator.git
+git clone https://github.com/golovinengineer/canopen-dictator.git
 cd dictator
 cargo install --path .
 ```
@@ -209,7 +209,7 @@ jobs:
       - name: Install Dictator
         run: |
           command -v dictator || cargo install --locked --no-default-features \
-            --git https://github.com/golovinengineer/dictator --rev <commit>
+            --git https://github.com/golovinengineer/canopen-dictator --rev <commit>
       - name: Generate
         run: |
           dictator export device.objdict.toml \
@@ -233,7 +233,7 @@ object-dictionary:
   script:
     - export PATH="$CARGO_HOME/bin:$PATH"
     - command -v dictator || cargo install --locked --no-default-features
-        --git https://github.com/golovinengineer/dictator --rev <commit>
+        --git https://github.com/golovinengineer/canopen-dictator --rev <commit>
     - dictator export device.objdict.toml
         --c generated/ObjDict.c --eds generated/device.eds --md generated/device.md
   artifacts:
@@ -298,7 +298,7 @@ sub = [
   as you typed them.
 
 The format is documented at the top of
-[`crates/dictator-core/src/project.rs`](crates/dictator-core/src/project.rs),
+[`crates/canopen-dictator-core/src/project.rs`](crates/canopen-dictator-core/src/project.rs),
 and [`assets/example/example.objdict.toml`](assets/example/example.objdict.toml)
 uses every feature.
 
@@ -333,7 +333,7 @@ against files made by the original tools. Planned next:
   firmware build;
 - packaging.
 
-The [issue tracker](https://github.com/golovinengineer/dictator/issues) tracks all of it.
+The [issue tracker](https://github.com/golovinengineer/canopen-dictator/issues) tracks all of it.
 
 ## Development
 
@@ -346,11 +346,11 @@ cargo run -- --gui path/to/project    # the window (a plain `cargo run` in a ter
 | Crate | Contents | Licence |
 | --- | --- | --- |
 | `dictator` (repository root) | GUI, terminal UI and command line | MIT OR Apache-2.0 |
-| `crates/dictator-core` | model, project file, editing session, XDD import, EDS and Markdown export | MIT OR Apache-2.0 |
-| `crates/dictator-canfestival` | CanFestival C generator, `.od` import and export, a port of CanFestival `objdictgen` | LGPL-2.1-or-later |
+| `crates/canopen-dictator-core` | model, project file, editing session, XDD import, EDS and Markdown export | MIT OR Apache-2.0 |
+| `crates/canopen-dictator-canfestival` | CanFestival C generator, `.od` import and export, a port of CanFestival `objdictgen` | LGPL-2.1-or-later |
 
 Both front ends drive the same editing session
-(`dictator_core::editor::Editor`). New editing behaviour belongs there, so
+(`canopen_dictator_core::editor::Editor`). New editing behaviour belongs there, so
 the window and the terminal UI both get it.
 
 The golden files in [`assets/example/`](assets/example/README.md) were
@@ -361,10 +361,10 @@ records the design decisions and notes on each file format.
 ## Licence
 
 Dictator is licensed under either of [Apache License 2.0](LICENSE-APACHE) or
-[MIT](LICENSE-MIT), at your option, **except** `crates/dictator-canfestival`.
+[MIT](LICENSE-MIT), at your option, **except** `crates/canopen-dictator-canfestival`.
 That crate is derived from CanFestival (© Edouard Tisserant, Francis Dupin,
 Laurent Bessard) and is licensed under the
-[GNU LGPL 2.1 or later](crates/dictator-canfestival/COPYING).
+[GNU LGPL 2.1 or later](crates/canopen-dictator-canfestival/COPYING).
 A `dictator` binary contains both, so whoever distributes one also takes on
 the LGPL obligations for that crate: provide its source and allow relinking.
 

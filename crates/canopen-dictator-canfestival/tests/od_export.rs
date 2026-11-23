@@ -3,7 +3,7 @@
 
 mod common;
 
-use dictator_canfestival::od::{self, Py};
+use canopen_dictator_canfestival::od::{self, Py};
 
 /// Order-insensitive form of a pickled value: dict entries and object
 /// attributes sorted, so two `.od` files can be compared by content.

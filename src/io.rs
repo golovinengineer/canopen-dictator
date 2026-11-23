@@ -6,9 +6,9 @@ use std::path::Path;
 
 use anyhow::{Context, Result, anyhow, bail};
 
-use dictator_canfestival as canfestival;
-use dictator_core::model::ObjectDictionary;
-use dictator_core::{export, project, xdd};
+use canopen_dictator_canfestival as canfestival;
+use canopen_dictator_core::model::ObjectDictionary;
+use canopen_dictator_core::{export, project, xdd};
 
 /// File extensions (lowercase) that are imported rather than opened.
 #[cfg(any(feature = "gui", feature = "tui"))]

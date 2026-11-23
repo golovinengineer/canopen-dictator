@@ -2,26 +2,48 @@
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.0-alpha.1"
 edition = "2024"
+repository = "https://github.com/golovinengineer/canopen-dictator"
+keywords = ["canopen", "can", "object-dictionary", "canfestival", "eds"]
+categories = ["embedded", "development-tools", "command-line-utilities", "gui"]
 
 [workspace.dependencies]
 anyhow = "1.0.104"
 roxmltree = "0.21.2"
-dictator-core = { path = "crates/dictator-core" }
-dictator-canfestival = { path = "crates/dictator-canfestival" }
+canopen-dictator-core = { path = "crates/canopen-dictator-core", version = "=0.1.0-alpha.1" }
+canopen-dictator-canfestival = { path = "crates/canopen-dictator-canfestival", version = "=0.1.0-alpha.1" }
 
 [package]
-name = "dictator"
+name = "canopen-dictator"
 description = "CANopen object dictionary editor"
 license = "MIT OR Apache-2.0"
 version.workspace = true
 edition.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "README.md"
+include = [
+    "/src/",
+    "/ui/",
+    "/build.rs",
+    "/slint-project.json",
+    "/assets/icon/png/dictator-256.png",
+    "/assets/icon/png/dictator-dark-256.png",
+    "/README.md",
+    "/LICENSE-MIT",
+    "/LICENSE-APACHE",
+]
+
+[[bin]]
+name = "dictator"
+path = "src/main.rs"
 
 [dependencies]
 anyhow.workspace = true
-dictator-core.workspace = true
-dictator-canfestival.workspace = true
+canopen-dictator-core.workspace = true
+canopen-dictator-canfestival.workspace = true
 ratatui = { version = "0.30.2", optional = true }
 rfd = { version = "0.18.0", optional = true }
 slint = { version = "1.19.0", optional = true }

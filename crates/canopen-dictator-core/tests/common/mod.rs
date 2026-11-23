@@ -3,8 +3,8 @@
 #![allow(dead_code)]
 use std::path::PathBuf;
 
-use dictator_core::model::ObjectDictionary;
-use dictator_core::project;
+use canopen_dictator_core::model::ObjectDictionary;
+use canopen_dictator_core::project;
 
 /// A file of the neutral example set (see `assets/example/README.md`).
 pub fn asset(name: &str) -> PathBuf {
@@ -19,7 +19,7 @@ pub fn read_asset(name: &str) -> String {
 
 /// The example as imported from the CANopenEditor XDD.
 pub fn sample_xdd() -> ObjectDictionary {
-    dictator_core::xdd::load(&asset("example.xdd")).unwrap()
+    canopen_dictator_core::xdd::load(&asset("example.xdd")).unwrap()
 }
 
 /// The checked-in project: the XDD plus CanFestival settings.

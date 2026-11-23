@@ -1,9 +1,12 @@
 [package]
-name = "dictator-core"
+name = "canopen-dictator-core"
 description = "CANopen object dictionary model, project file, XDD import, EDS and Markdown export"
 license = "MIT OR Apache-2.0"
 version.workspace = true
 edition.workspace = true
+repository.workspace = true
+categories = ["embedded", "development-tools", "parser-implementations"]
+keywords = ["canopen", "can", "object-dictionary", "eds"]
 
 [dependencies]
 anyhow.workspace = true

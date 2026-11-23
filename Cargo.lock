@@ -705,6 +705,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "canopen-dictator"
+version = "0.1.0-alpha.1"
+dependencies = [
+ "anyhow",
+ "canopen-dictator-canfestival",
+ "canopen-dictator-core",
+ "ratatui",
+ "rfd",
+ "slint",
+ "slint-build",
+ "toml",
+]
+
+[[package]]
+name = "canopen-dictator-canfestival"
+version = "0.1.0-alpha.1"
+dependencies = [
+ "anyhow",
+ "canopen-dictator-core",
+ "roxmltree",
+]
+
+[[package]]
+name = "canopen-dictator-core"
+version = "0.1.0-alpha.1"
+dependencies = [
+ "anyhow",
+ "roxmltree",
+ "toml",
+]
+
+[[package]]
 name = "castaway"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1129,38 +1161,6 @@ dependencies = [
  "rustc_version",
  "syn 2.0.119",
  "unicode-xid",
-]
-
-[[package]]
-name = "dictator"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dictator-canfestival",
- "dictator-core",
- "ratatui",
- "rfd",
- "slint",
- "slint-build",
- "toml",
-]
-
-[[package]]
-name = "dictator-canfestival"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dictator-core",
- "roxmltree",
-]
-
-[[package]]
-name = "dictator-core"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "roxmltree",
- "toml",
 ]
 
 [[package]]

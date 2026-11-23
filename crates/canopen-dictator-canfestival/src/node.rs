@@ -21,7 +21,7 @@ use std::collections::BTreeMap;
 use anyhow::{Result, anyhow, bail};
 
 use super::ds301::{self, Default as TableDefault};
-use dictator_core::model::*;
+use canopen_dictator_core::model::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {

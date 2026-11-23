@@ -2,7 +2,7 @@
 
 Design decisions and notes on each file format, for whoever works on
 Dictator. Planned work and bugs live in the
-[issue tracker](https://github.com/golovinengineer/dictator/issues); add
+[issue tracker](https://github.com/golovinengineer/canopen-dictator/issues); add
 findings here rather than rediscovering them.
 
 ## Goal
@@ -22,14 +22,14 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
 | CanFestival settings (node name/id/type, callbacks, save flags) are first-class project fields | XDD has no place for them |
 | Callbacks default to off | CanFestival's own default; enabled per object |
 | Exports use the project's `created` time for creation *and* modification | Re-exporting an unchanged project gives byte-identical files |
-| Workspace of three crates; `dictator-canfestival` is LGPL-2.1-or-later, the rest MIT OR Apache-2.0 | The C generator is a port of LGPL CanFestival code and cannot be relicensed; keeping it in its own crate leaves everything else permissive |
+| Workspace of three crates; `canopen-dictator-canfestival` is LGPL-2.1-or-later, the rest MIT OR Apache-2.0 | The C generator is a port of LGPL CanFestival code and cannot be relicensed; keeping it in its own crate leaves everything else permissive |
 | Slint used under its Royalty-free License 2.0, attribution via `AboutSlint` in the About dialog | Desktop use is free under any app licence; the GPLv3 option would force GPL on the whole binary |
 
 ## Notes
 
 ### Two front ends, one editing session
 
-`dictator_core::editor::Editor` owns the dictionary, the file path, the
+`canopen_dictator_core::editor::Editor` owns the dictionary, the file path, the
 saved copy (for dirty tracking), the selection and the filter. Both
 `src/gui.rs` and `src/tui/` call it with the same string field keys and
 text values; put new editing behaviour there, not in a front end, so both
@@ -41,7 +41,7 @@ plain `cargo run` from a terminal now opens the TUI.
 
 ### Project file format
 
-Documented at the top of `crates/dictator-core/src/project.rs`; `assets/example/example.objdict.toml`
+Documented at the top of `crates/canopen-dictator-core/src/project.rs`; `assets/example/example.objdict.toml`
 is a full example. A VAR keeps its value fields on the object table; ARRAY and
 RECORD have a `sub = [ {...}, ]` array with sub 0 written explicitly, and
 per-subindex descriptions in `[object.0xNNNN.doc]`. Defaults and limits are
@@ -49,7 +49,7 @@ strings so `0x22000508` and `$NODEID+0x180` survive as typed.
 
 ### What "CanFestival-compatible" means here
 
-`crates/dictator-canfestival` is a port of CanFestival's `node.py`, `eds_utils.py` and
+`crates/canopen-dictator-canfestival` is a port of CanFestival's `node.py`, `eds_utils.py` and
 `gen_cfile.py` (reference copy: `co_objdictgen`). The old chain
 imported an EDS, and that import, not the templates, decides most names:
 
@@ -143,8 +143,8 @@ components (grid placement), hence `item`.
 
 Settled (see Decisions and `README.md`). Keep in mind:
 
-- code ported from CanFestival goes into `dictator-canfestival` only, with an
-  `LGPL-2.1-or-later` SPDX header; `dictator-core` and `dictator-canopennode`
+- code ported from CanFestival goes into `canopen-dictator-canfestival` only, with an
+  `LGPL-2.1-or-later` SPDX header; `canopen-dictator-core` and `canopen-dictator-canopennode`
   must not depend on it;
 - importers and exporters for CANopenEditor formats (XDD, its EDS and
   Markdown layout) are written from the file format and sample files, never

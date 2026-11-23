@@ -24,7 +24,7 @@ use anyhow::{Result, anyhow, bail};
 
 use super::pickle::{Py, write_pickle};
 use crate::ds301::{self, Default as TableDefault};
-use dictator_core::model::*;
+use canopen_dictator_core::model::*;
 
 /// The `.od` file for `od`.
 pub fn generate(od: &ObjectDictionary) -> Result<String> {

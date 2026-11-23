@@ -21,7 +21,7 @@ use anyhow::{Result, bail};
 
 use super::ds301::{self, OD_IDENTICAL_SUBINDEXES, OD_MULTIPLE_SUBINDEXES};
 use super::node::{CfEntry, CfNode, CfSub, Value};
-use dictator_core::model::{DataType, NodeType, ObjectDictionary};
+use canopen_dictator_core::model::{DataType, NodeType, ObjectDictionary};
 
 const CATEGORIES: [(&str, u16, u16); 6] = [
     ("SDO_SVR", 0x1200, 0x127F),

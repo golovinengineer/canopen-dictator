@@ -14,9 +14,9 @@ use std::rc::Rc;
 use anyhow::Result;
 use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
-use dictator_core::editor::{self, Editor, ListRow, SettingField};
-use dictator_core::model::*;
-use dictator_core::project;
+use canopen_dictator_core::editor::{self, Editor, ListRow, SettingField};
+use canopen_dictator_core::model::*;
+use canopen_dictator_core::project;
 
 use crate::io;
 use crate::note::object_note;

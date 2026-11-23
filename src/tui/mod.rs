@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
 //! Ratatui front end, started when Dictator runs in a terminal. It drives
-//! the same [`dictator_core::editor::Editor`] as the Slint GUI.
+//! the same [`canopen_dictator_core::editor::Editor`] as the Slint GUI.
 
 mod app;
 mod input;

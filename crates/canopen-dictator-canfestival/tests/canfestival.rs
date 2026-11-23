@@ -3,7 +3,7 @@
 
 mod common;
 
-use dictator_canfestival::gen_c;
+use canopen_dictator_canfestival::gen_c;
 
 /// `ObjDict.c/.h` were made by CanFestival's gen_cfile from `example.od`,
 /// which objdictedit imported from `example.eds` (see assets/example).

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use anyhow::{Result, anyhow, bail};
-use dictator_core::project;
+use canopen_dictator_core::project;
 
 #[cfg(feature = "gui")]
 mod gui;
@@ -80,7 +80,7 @@ fn print_warnings(warnings: Vec<String>) {
 }
 
 /// `io::open`, printing import warnings to stderr.
-fn open(path: &Path) -> Result<dictator_core::model::ObjectDictionary> {
+fn open(path: &Path) -> Result<canopen_dictator_core::model::ObjectDictionary> {
     let (od, warnings) = io::open(path)?;
     print_warnings(warnings);
     Ok(od)

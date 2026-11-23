@@ -1,11 +1,14 @@
 [package]
-name = "dictator-canfestival"
+name = "canopen-dictator-canfestival"
 description = "CanFestival-compatible C code generator and .od import/export (port of CanFestival objdictgen)"
 license = "LGPL-2.1-or-later"
 version.workspace = true
 edition.workspace = true
+repository.workspace = true
+categories = ["embedded", "development-tools", "parser-implementations"]
+keywords = ["canopen", "can", "object-dictionary", "eds"]
 
 [dependencies]
 anyhow.workspace = true
-dictator-core.workspace = true
+canopen-dictator-core.workspace = true
 roxmltree.workspace = true
