@@ -1,0 +1,79 @@
+name: Release
+
+# A pushed tag vX.Y.Z builds Dictator.app and publishes a GitHub Release.
+# Run by hand (workflow_dispatch), it only builds and uploads the zip as an
+# Actions artifact: a dry run.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  macos:
+    name: macOS app
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Version
+        id: version
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 |
+            python3 -c 'import json,sys; print(next(p["version"] for p in json.load(sys.stdin)["packages"] if p["name"] == "canopen-dictator"))')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF_TYPE" == tag && "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the Cargo version $version (expected v$version)"
+            exit 1
+          fi
+
+      - name: Build Dictator.app
+        run: scripts/bundle-macos.sh
+
+      - name: Upload artifact (dry run)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v7
+        with:
+          name: Dictator-${{ steps.version.outputs.version }}-macos-universal
+          path: |
+            target/bundle/*.zip
+            target/bundle/*.zip.sha256
+
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cat > notes.md <<'EOF'
+          ## Installing on macOS
+
+          1. Download `Dictator-*-macos-universal.zip` below and open it.
+          2. Move `Dictator.app` to Applications.
+          3. The app is not signed with an Apple Developer ID yet, so the first
+             start is blocked. Open System Settings → Privacy & Security and click
+             **Open Anyway**, or run once in a terminal:
+             `xattr -dr com.apple.quarantine /Applications/Dictator.app`
+
+          The same binary is the command line and terminal UI:
+          `sudo mkdir -p /usr/local/bin && sudo ln -sf /Applications/Dictator.app/Contents/MacOS/dictator /usr/local/bin/dictator`
+          EOF
+          prerelease=()
+          if [[ "$VERSION" == *-* ]]; then prerelease=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Dictator $VERSION" \
+            --notes-file notes.md --generate-notes \
+            "${prerelease[@]}" \
+            target/bundle/*.zip target/bundle/*.zip.sha256
