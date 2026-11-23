@@ -72,7 +72,7 @@ Dictator aims to be one editor for all of them:
 | Markdown documentation | | ✓ | CANopenEditor's layout |
 
 CANopenNode v4 `OD.c`/`OD.h`, XDD export and EDS import are planned; see
-[the development plan](docs/DEVELOPMENT_PLAN.md).
+[the issue tracker](https://github.com/golovinengineer/dictator/issues).
 
 ## Installing
 
@@ -315,7 +315,7 @@ tool's naming rules. Two things can be surprising:
 - Sub 0 of an array is the highest subindex present, not the default you
   set.
 
-The [development plan](docs/DEVELOPMENT_PLAN.md#what-canfestival-compatible-means-here)
+The [architecture notes](docs/ARCHITECTURE.md#what-canfestival-compatible-means-here)
 lists every rule and the few deliberate differences from the Python tool.
 
 ## Status
@@ -333,7 +333,7 @@ against files made by the original tools. Planned next:
   firmware build;
 - packaging.
 
-The [development plan](docs/DEVELOPMENT_PLAN.md) tracks all of it.
+The [issue tracker](https://github.com/golovinengineer/dictator/issues) tracks all of it.
 
 ## Development
 
@@ -355,8 +355,8 @@ the window and the terminal UI both get it.
 
 The golden files in [`assets/example/`](assets/example/README.md) were
 produced by CANopenEditor and CanFestival. That README explains how to
-regenerate them. [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md)
-records the design decisions, the backlog and notes on each file format.
+regenerate them. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+records the design decisions and notes on each file format.
 
 ## Licence
 
