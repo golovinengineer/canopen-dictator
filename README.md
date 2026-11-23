@@ -19,19 +19,15 @@ It runs as a desktop window (Slint) or as a terminal UI (Ratatui) from the
 same binary. A small command line handles imports and exports in scripts and
 CI.
 
-```
-┌ Objects ──────────────────┬ 0x1800 TPDO communication parameter ─┬ Sub 0x01 ──────────────┐
-│ Communication             │ Index     1800                        │ Name     COB-ID used…  │
-│  1000 Device type         │ Name      TPDO communication param…   │ Type     UNSIGNED32    │
-│  1001 Error register      │ Kind      RECORD                      │ Access   rw            │
-│  1017 Producer heartbeat  │ Sub  Name                    Default  │ Default  $NODEID+0x180 │
-│ ▸1800 TPDO communication  │ 00   Highest sub-index su…   0x06     │ PDO      no            │
-│  1A00 TPDO mapping param… │ 01   COB-ID used by TPDO     $NODEID… │                        │
-│ Manufacturer              │ 02   Transmission type       254      │                        │
-│  2000 …                   │ 03   Inhibit time            0        │                        │
-└───────────────────────────┴───────────────────────────────────────┴────────────────────────┘
- example.objdict.toml                                              ↑↓ move  ⏎ edit  ? help
-```
+<p align="center">
+  <img src="docs/screenshots/gui.png" alt="Dictator's desktop window with the example project open" width="900">
+  <br><em>The desktop window</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/tui.png" alt="Dictator's terminal UI with the example project open" width="900">
+  <br><em>The terminal UI, same binary</em>
+</p>
 
 ## Why
 
