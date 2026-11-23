@@ -76,9 +76,10 @@ CANopenNode v4 `OD.c`/`OD.h`, XDD export and EDS import are planned; see
 
 ### macOS app
 
-Download `Dictator-<version>-macos-universal.zip` from
+Download `Dictator-<version>-macos-universal.dmg` from
 [Releases](https://github.com/golovinengineer/canopen-dictator/releases),
-open it and move `Dictator.app` to Applications. It runs on Apple Silicon
+open it and drag `Dictator.app` onto the Applications folder next to it
+(a `.zip` with the same app is there too). It runs on Apple Silicon
 and Intel Macs with macOS 11 or later.
 
 The app is not signed with an Apple Developer ID yet, so macOS blocks the
@@ -137,6 +138,10 @@ Open the example project that comes with the repository:
 ```sh
 dictator assets/example/example.objdict.toml
 ```
+
+The example uses every data type the formats know, including a
+UNICODE_STRING object (0x200D) that CanFestival has no C type for. To try
+the C export on it, disable that object first.
 
 Bring in an existing CANopenEditor or CanFestival project:
 

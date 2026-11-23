@@ -2,15 +2,15 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 #
 # Build Dictator.app for macOS as a universal binary (Apple Silicon + Intel),
-# sign it ad hoc and zip it.
+# sign it ad hoc, and pack it as a .dmg (drag to Applications) and a .zip.
 #
 #   scripts/bundle-macos.sh
 #
 # Needs the Rust targets aarch64-apple-darwin and x86_64-apple-darwin
 # (`rustup target add ...`). Output in target/bundle/:
 #   Dictator.app
-#   Dictator-<version>-macos-universal.zip
-#   Dictator-<version>-macos-universal.zip.sha256
+#   Dictator-<version>-macos-universal.dmg (+ .sha256)
+#   Dictator-<version>-macos-universal.zip (+ .sha256)
 
 set -euo pipefail
 
@@ -79,10 +79,34 @@ plutil -lint "$APP/Contents/Info.plist"
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict "$APP"
 
-zip="Dictator-$version-macos-universal.zip"
+name="Dictator-$version-macos-universal"
+
+zip="$name.zip"
 rm -f "$OUT/$zip" "$OUT/$zip.sha256"
 ditto -c -k --keepParent "$APP" "$OUT/$zip"
 (cd "$OUT" && shasum -a 256 "$zip" > "$zip.sha256")
 
+# The disk image shows the app next to a link to /Applications, so opening
+# it says how to install: drag one onto the other.
+dmg="$name.dmg"
+staging="$OUT/dmg"
+rm -rf "$staging" "$OUT/$dmg" "$OUT/$dmg.sha256"
+mkdir -p "$staging"
+ditto "$APP" "$staging/Dictator.app"
+ln -s /Applications "$staging/Applications"
+# hdiutil now and then fails with "Resource busy" on CI runners; retry.
+for attempt in 1 2 3; do
+    if hdiutil create -volname "Dictator $version" -srcfolder "$staging" \
+        -format UDZO -ov "$OUT/$dmg"; then
+        break
+    fi
+    [[ $attempt == 3 ]] && exit 1
+    sleep 5
+done
+rm -rf "$staging"
+hdiutil verify "$OUT/$dmg"
+(cd "$OUT" && shasum -a 256 "$dmg" > "$dmg.sha256")
+
 lipo -info "$APP/Contents/MacOS/dictator"
+echo "$OUT/$dmg"
 echo "$OUT/$zip"
