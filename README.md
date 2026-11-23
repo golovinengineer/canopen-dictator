@@ -7,6 +7,8 @@
 
 # Dictator
 
+[![CI](https://github.com/golovinengineer/canopen-dictator/actions/workflows/ci.yml/badge.svg)](https://github.com/golovinengineer/canopen-dictator/actions/workflows/ci.yml)
+
 A cross-platform CANopen object dictionary editor. You edit the dictionary
 in a plain-text project file that stays readable in git diffs. Dictator
 imports existing projects from other tools, and from the project file it
