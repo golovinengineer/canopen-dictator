@@ -49,7 +49,10 @@ pub struct Editor {
 /// 0x1000 hold data type definitions and can't be edited.
 pub fn parse_hex_index(text: &str) -> Result<u16> {
     let t = text.trim();
-    let t = t.strip_prefix("0x").or_else(|| t.strip_prefix("0X")).unwrap_or(t);
+    let t = t
+        .strip_prefix("0x")
+        .or_else(|| t.strip_prefix("0X"))
+        .unwrap_or(t);
     let v = u16::from_str_radix(t, 16).map_err(|_| anyhow!("{text:?} is not a hex index"))?;
     if v < 0x1000 {
         bail!("index 0x{v:04X} is below 0x1000 (reserved for data types)");
@@ -82,7 +85,10 @@ pub fn value_field_ok(key: &str, default: &str, min: &str, max: &str, t: DataTyp
         "max" => (max, ""),
         _ => return true,
     };
-    check_value(text, t).is_ok() && !check_limits(default, min, max, t).iter().any(|(field, _)| *field == blamed)
+    check_value(text, t).is_ok()
+        && !check_limits(default, min, max, t)
+            .iter()
+            .any(|(field, _)| *field == blamed)
 }
 
 /// How a value field is called in messages.
@@ -112,9 +118,15 @@ pub fn change_kind(obj: &mut Object, kind: ObjectKind) {
     match (obj.kind, kind) {
         (a, b) if a == b => {}
         (ObjectKind::Var, _) => {
-            let mut value = obj.subs.pop().unwrap_or_else(|| SubObject::new(0, "", DataType::U32, Access::Rw));
+            let mut value = obj
+                .subs
+                .pop()
+                .unwrap_or_else(|| SubObject::new(0, "", DataType::U32, Access::Rw));
             value.sub = 1;
-            obj.subs = vec![SubObject::new(0, "Highest sub-index supported", DataType::U8, Access::Ro), value];
+            obj.subs = vec![
+                SubObject::new(0, "Highest sub-index supported", DataType::U8, Access::Ro),
+                value,
+            ];
         }
         (_, ObjectKind::Var) => {
             let keep = if obj.subs.len() > 1 { 1 } else { 0 };
@@ -137,7 +149,10 @@ pub fn change_kind(obj: &mut Object, kind: ObjectKind) {
 /// Set the device or CanFestival setting `key` from its text.
 pub fn apply_setting(od: &mut ObjectDictionary, key: &str, value: &str) -> Result<()> {
     fn num<T: std::str::FromStr>(value: &str, what: &str) -> Result<T> {
-        value.trim().parse().map_err(|_| anyhow!("{what}: {value:?} is not a valid number"))
+        value
+            .trim()
+            .parse()
+            .map_err(|_| anyhow!("{what}: {value:?} is not a valid number"))
     }
     let v = value.to_string();
     let (d, c) = (&mut od.device, &mut od.canfestival);
@@ -181,8 +196,18 @@ pub fn apply_setting(od: &mut ObjectDictionary, key: &str, value: &str) -> Resul
     Ok(())
 }
 
-fn field(key: &'static str, label: &'static str, value: String, hint: &'static str) -> SettingField {
-    SettingField { key, label, value, hint }
+fn field(
+    key: &'static str,
+    label: &'static str,
+    value: String,
+    hint: &'static str,
+) -> SettingField {
+    SettingField {
+        key,
+        label,
+        value,
+        hint,
+    }
 }
 
 impl Editor {
@@ -191,7 +216,14 @@ impl Editor {
     pub fn new(od: ObjectDictionary, path: Option<PathBuf>, dirty: bool) -> Self {
         let first = od.objects.keys().next().copied();
         let saved = (!dirty).then(|| od.clone());
-        Editor { od, path, saved, selected: first, selected_sub: first.map(|_| 0), filter: String::new() }
+        Editor {
+            od,
+            path,
+            saved,
+            selected: first,
+            selected_sub: first.map(|_| 0),
+            filter: String::new(),
+        }
     }
 
     /// Whether the dictionary differs from the saved one. Comparing the
@@ -203,7 +235,11 @@ impl Editor {
 
     /// The project's file name, or "Untitled".
     pub fn file_label(&self) -> &str {
-        self.path.as_deref().and_then(Path::file_name).and_then(|n| n.to_str()).unwrap_or("Untitled")
+        self.path
+            .as_deref()
+            .and_then(Path::file_name)
+            .and_then(|n| n.to_str())
+            .unwrap_or("Untitled")
     }
 
     /// The project's file name without the project extension, as a base
@@ -213,7 +249,11 @@ impl Editor {
             .as_deref()
             .and_then(Path::file_name)
             .and_then(|n| n.to_str())
-            .map(|n| n.trim_end_matches(&format!(".{}", project::EXTENSION)).trim_end_matches(".toml").to_string())
+            .map(|n| {
+                n.trim_end_matches(&format!(".{}", project::EXTENSION))
+                    .trim_end_matches(".toml")
+                    .to_string()
+            })
             .unwrap_or_else(|| "ObjDict".to_string())
     }
 
@@ -276,7 +316,9 @@ impl Editor {
             let hit = needle.is_empty()
                 || o.name.to_lowercase().contains(&needle)
                 || format!("{index:04x}").contains(needle.trim_start_matches("0x"))
-                || o.subs.iter().any(|s| s.name.to_lowercase().contains(&needle));
+                || o.subs
+                    .iter()
+                    .any(|s| s.name.to_lowercase().contains(&needle));
             if !hit {
                 continue;
             }
@@ -294,7 +336,11 @@ impl Editor {
 
     fn with_object<T>(&mut self, f: impl FnOnce(&mut Object) -> Result<T>) -> Result<T> {
         let index = self.selected.ok_or_else(|| anyhow!("no object selected"))?;
-        let obj = self.od.objects.get_mut(&index).ok_or_else(|| anyhow!("no object selected"))?;
+        let obj = self
+            .od
+            .objects
+            .get_mut(&index)
+            .ok_or_else(|| anyhow!("no object selected"))?;
         f(obj)
     }
 
@@ -310,7 +356,11 @@ impl Editor {
                     if self.od.objects.contains_key(&new) {
                         bail!("index 0x{new:04X} is already used");
                     }
-                    let obj = self.od.objects.remove(&old).ok_or_else(|| anyhow!("no object selected"))?;
+                    let obj = self
+                        .od
+                        .objects
+                        .remove(&old)
+                        .ok_or_else(|| anyhow!("no object selected"))?;
                     self.od.objects.insert(new, obj);
                     self.selected = Some(new);
                 }
@@ -326,7 +376,8 @@ impl Editor {
                 Ok(())
             })?,
             "kind" => {
-                let kind = ObjectKind::from_short(value).ok_or_else(|| anyhow!("unknown kind {value}"))?;
+                let kind =
+                    ObjectKind::from_short(value).ok_or_else(|| anyhow!("unknown kind {value}"))?;
                 self.with_object(|o| {
                     change_kind(o, kind);
                     Ok(())
@@ -362,10 +413,15 @@ impl Editor {
     /// moving a range depend on the order of the edits);
     /// [`Editor::value_problem`] says what is wrong.
     pub fn edit_sub(&mut self, key: &str, value: &str) -> Result<()> {
-        let pos = self.selected_sub.ok_or_else(|| anyhow!("no subindex selected"))?;
+        let pos = self
+            .selected_sub
+            .ok_or_else(|| anyhow!("no subindex selected"))?;
         self.with_object(|o| {
             let is_var = o.kind == ObjectKind::Var;
-            let s = o.subs.get_mut(pos).ok_or_else(|| anyhow!("no subindex selected"))?;
+            let s = o
+                .subs
+                .get_mut(pos)
+                .ok_or_else(|| anyhow!("no subindex selected"))?;
             match key {
                 "name" if !is_var => s.name = value.to_string(),
                 "name" => {}
@@ -375,8 +431,14 @@ impl Editor {
                         .find(|t| t.cia_name() == value)
                         .ok_or_else(|| anyhow!("unknown type {value}"))?
                 }
-                "access" => s.access = Access::from_short(value).ok_or_else(|| anyhow!("unknown access {value}"))?,
-                "pdo" => s.pdo = PdoMapping::from_short(value).ok_or_else(|| anyhow!("unknown mapping {value}"))?,
+                "access" => {
+                    s.access = Access::from_short(value)
+                        .ok_or_else(|| anyhow!("unknown access {value}"))?
+                }
+                "pdo" => {
+                    s.pdo = PdoMapping::from_short(value)
+                        .ok_or_else(|| anyhow!("unknown mapping {value}"))?
+                }
                 "default" | "min" | "max" => {
                     if let Err(why) = check_value(value, s.data_type) {
                         bail!("{} not changed: {why}", value_label(key));
@@ -403,18 +465,44 @@ impl Editor {
     /// show it after editing the type or one of the values.
     pub fn value_problem(&self) -> Option<String> {
         let s = self.selected_sub_object()?;
-        let bad: Vec<String> = s.bad_values().into_iter().map(|(field, v, _)| format!("{field} {v}")).collect();
+        let bad: Vec<String> = s
+            .bad_values()
+            .into_iter()
+            .map(|(field, v, _)| format!("{field} {v}"))
+            .collect();
         let (what, it) = if !bad.is_empty() {
-            let (verb, it) = if bad.len() == 1 { ("does", "it") } else { ("do", "them") };
-            (format!("{} {verb} not fit {}", bad.join(", "), s.data_type.cia_name()), it)
+            let (verb, it) = if bad.len() == 1 {
+                ("does", "it")
+            } else {
+                ("do", "them")
+            };
+            (
+                format!(
+                    "{} {verb} not fit {}",
+                    bad.join(", "),
+                    s.data_type.cia_name()
+                ),
+                it,
+            )
         } else {
-            let limits: Vec<String> = s.limit_problems().into_iter().map(|(field, why)| format!("{field} {why}")).collect();
+            let limits: Vec<String> = s
+                .limit_problems()
+                .into_iter()
+                .map(|(field, why)| format!("{field} {why}"))
+                .collect();
             if limits.is_empty() {
                 return None;
             }
-            (limits.join(", "), if limits.len() == 1 { "it" } else { "them" })
+            (
+                limits.join(", "),
+                if limits.len() == 1 { "it" } else { "them" },
+            )
         };
-        Some(format!("{}{}; fix {it} before exporting", what[..1].to_uppercase(), &what[1..]))
+        Some(format!(
+            "{}{}; fix {it} before exporting",
+            what[..1].to_uppercase(),
+            &what[1..]
+        ))
     }
 
     /// Whether `text` in the selected subindex's `default`, `min` or `max`
@@ -440,7 +528,11 @@ impl Editor {
     pub fn add_object(&mut self, index: &str, name: &str, kind: &str) -> Result<u16> {
         let index = parse_hex_index(index)?;
         let kind = ObjectKind::from_short(kind).ok_or_else(|| anyhow!("unknown kind {kind}"))?;
-        let name = if name.trim().is_empty() { "New object" } else { name.trim() };
+        let name = if name.trim().is_empty() {
+            "New object"
+        } else {
+            name.trim()
+        };
         if self.od.objects.contains_key(&index) {
             bail!("index 0x{index:04X} is already used");
         }
@@ -510,7 +602,9 @@ impl Editor {
 
     /// Delete the selected subindex; sub 0 stays.
     pub fn delete_sub(&mut self) -> Result<()> {
-        let pos = self.selected_sub.ok_or_else(|| anyhow!("no subindex selected"))?;
+        let pos = self
+            .selected_sub
+            .ok_or_else(|| anyhow!("no subindex selected"))?;
         let len = self.with_object(|o| {
             if o.kind == ObjectKind::Var {
                 bail!("a VAR has no subindexes");
@@ -544,8 +638,18 @@ impl Editor {
             field("description", "Description", d.description.clone(), ""),
             field("file_version", "File version", d.file_version.clone(), ""),
             field("created_by", "Created by", d.created_by.clone(), ""),
-            field("baud_rates", "Baud rates", rates.join(", "), "kbit/s, comma separated: 10, 20, 50, 125, 250, 500, 800, 1000"),
-            field("granularity", "Granularity", d.granularity.to_string(), "PDO mapping granularity in bits"),
+            field(
+                "baud_rates",
+                "Baud rates",
+                rates.join(", "),
+                "kbit/s, comma separated: 10, 20, 50, 125, 250, 500, 800, 1000",
+            ),
+            field(
+                "granularity",
+                "Granularity",
+                d.granularity.to_string(),
+                "PDO mapping granularity in bits",
+            ),
             field("rpdo_count", "RPDO count", d.rpdo_count.to_string(), ""),
             field("tpdo_count", "TPDO count", d.tpdo_count.to_string(), ""),
         ]
@@ -555,10 +659,30 @@ impl Editor {
     pub fn canfestival_fields(&self) -> Vec<SettingField> {
         let c = &self.od.canfestival;
         vec![
-            field("node_name", "Node name", c.node_name.clone(), "Prefix of generated symbols, e.g. <name>_Data"),
-            field("node_id", "Default node ID", c.node_id.to_string(), "Also used to evaluate $NODEID in defaults"),
-            field("node_type", "Node type", c.node_type.short().to_string(), "slave or master"),
-            field("default_string_size", "Default string size", c.default_string_size.to_string(), "Minimum buffer size of string objects"),
+            field(
+                "node_name",
+                "Node name",
+                c.node_name.clone(),
+                "Prefix of generated symbols, e.g. <name>_Data",
+            ),
+            field(
+                "node_id",
+                "Default node ID",
+                c.node_id.to_string(),
+                "Also used to evaluate $NODEID in defaults",
+            ),
+            field(
+                "node_type",
+                "Node type",
+                c.node_type.short().to_string(),
+                "slave or master",
+            ),
+            field(
+                "default_string_size",
+                "Default string size",
+                c.default_string_size.to_string(),
+                "Minimum buffer size of string objects",
+            ),
         ]
     }
 
@@ -567,7 +691,9 @@ impl Editor {
     /// Whether `text` can become the index of the object at `current`
     /// (`None` for a new object): a free hex index from 0x1000.
     pub fn index_ok(&self, text: &str, current: Option<u16>) -> bool {
-        let Ok(index) = parse_hex_index(text) else { return false };
+        let Ok(index) = parse_hex_index(text) else {
+            return false;
+        };
         Some(index) == current || !self.od.objects.contains_key(&index)
     }
 

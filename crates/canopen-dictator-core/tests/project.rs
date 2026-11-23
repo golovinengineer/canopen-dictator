@@ -18,7 +18,12 @@ fn xdd_import_reads_sample() {
     assert_eq!(od.objects.len(), 63);
     assert_eq!(count(ObjectKind::Array), 6);
     assert_eq!(count(ObjectKind::Record), 23);
-    let disabled: Vec<u16> = od.objects.iter().filter(|(_, o)| o.disabled).map(|(i, _)| *i).collect();
+    let disabled: Vec<u16> = od
+        .objects
+        .iter()
+        .filter(|(_, o)| o.disabled)
+        .map(|(i, _)| *i)
+        .collect();
     assert_eq!(disabled, [0x1013, 0x1029, 0x2FFF]);
 
     let o = &od.objects[&0x1000];
@@ -41,9 +46,28 @@ fn xdd_import_reads_sample() {
     use DataType::*;
     assert_eq!(
         types,
-        [Boolean, I8, I16, I32, I64, U8, U16, U32, U64, Real32, Real64, VisibleString, OctetString, UnicodeString, Domain]
+        [
+            Boolean,
+            I8,
+            I16,
+            I32,
+            I64,
+            U8,
+            U16,
+            U32,
+            U64,
+            Real32,
+            Real64,
+            VisibleString,
+            OctetString,
+            UnicodeString,
+            Domain
+        ]
     );
-    assert_eq!((var(0x2001).min.as_str(), var(0x2001).max.as_str()), ("-10", "10"));
+    assert_eq!(
+        (var(0x2001).min.as_str(), var(0x2001).max.as_str()),
+        ("-10", "10")
+    );
     assert_eq!(var(0x2006).access, Access::Rww);
     assert_eq!(var(0x2007).access, Access::Rwr);
     assert_eq!(var(0x200F).access, Access::Const);
@@ -60,7 +84,10 @@ fn xdd_import_reads_sample() {
     assert_eq!(o.sub(6).unwrap().data_type, VisibleString);
 
     let o = &od.objects[&0x2102];
-    assert_eq!((o.storage_group.as_str(), o.count_label.as_str()), ("PERSIST_APP", "DEMO"));
+    assert_eq!(
+        (o.storage_group.as_str(), o.count_label.as_str()),
+        ("PERSIST_APP", "DEMO")
+    );
     assert!(o.description.contains("<markup> & special"));
     assert!(o.sub(1).unwrap().description.contains("25 \u{b0}C"));
 
@@ -106,7 +133,14 @@ fn checked_in_sample_project_matches_xdd() {
         from_xdd.objects.get_mut(&i).unwrap().callback = true;
     }
     from_xdd.objects.get_mut(&0x2012).unwrap().subs[0].save = true;
-    for s in from_xdd.objects.get_mut(&0x2102).unwrap().subs.iter_mut().filter(|s| s.sub >= 1) {
+    for s in from_xdd
+        .objects
+        .get_mut(&0x2102)
+        .unwrap()
+        .subs
+        .iter_mut()
+        .filter(|s| s.sub >= 1)
+    {
         s.save = true;
     }
     assert_eq!(from_xdd, common::sample_project());
@@ -116,7 +150,10 @@ fn checked_in_sample_project_matches_xdd() {
 fn value_problems_name_each_value_that_wont_export() {
     // The example, from either source, exports as it is.
     assert_eq!(common::sample_xdd().value_problems(), Vec::<String>::new());
-    assert_eq!(common::sample_project().value_problems(), Vec::<String>::new());
+    assert_eq!(
+        common::sample_project().value_problems(),
+        Vec::<String>::new()
+    );
 
     let mut od = common::sample_project();
     od.objects.get_mut(&0x1001).unwrap().subs[0].default = "300".into();
@@ -134,9 +171,15 @@ fn value_problems_name_each_value_that_wont_export() {
     let identity = od.objects.get_mut(&0x1018).unwrap();
     identity.subs[2].min = "0x100".into();
     identity.subs[2].default = "0x10".into();
-    assert_eq!(od.value_problems()[2], "0x1018 sub 0x02: default 0x10 is below the minimum 0x100");
+    assert_eq!(
+        od.value_problems()[2],
+        "0x1018 sub 0x02: default 0x10 is below the minimum 0x100"
+    );
 
     // Disabled objects are left out of exports, and so out of the check.
     od.objects.get_mut(&0x1018).unwrap().disabled = true;
-    assert_eq!(od.value_problems(), ["0x1001: default 300 does not fit UNSIGNED8"]);
+    assert_eq!(
+        od.value_problems(),
+        ["0x1001: default 300 does not fit UNSIGNED8"]
+    );
 }

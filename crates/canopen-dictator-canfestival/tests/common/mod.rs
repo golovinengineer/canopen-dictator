@@ -48,7 +48,19 @@ pub fn assert_same_tokens(ours: &str, theirs: &str, what: &str) {
     if a == b {
         return;
     }
-    let at = a.iter().zip(&b).position(|(x, y)| x != y).unwrap_or(a.len().min(b.len()));
-    let ctx = |v: &[char]| -> String { v[at.saturating_sub(120)..(at + 120).min(v.len())].iter().collect() };
-    panic!("{what} differs at squashed offset {at}\n ours:   {}\n theirs: {}", ctx(&a), ctx(&b));
+    let at = a
+        .iter()
+        .zip(&b)
+        .position(|(x, y)| x != y)
+        .unwrap_or(a.len().min(b.len()));
+    let ctx = |v: &[char]| -> String {
+        v[at.saturating_sub(120)..(at + 120).min(v.len())]
+            .iter()
+            .collect()
+    };
+    panic!(
+        "{what} differs at squashed offset {at}\n ours:   {}\n theirs: {}",
+        ctx(&a),
+        ctx(&b)
+    );
 }

@@ -31,7 +31,10 @@ impl Input {
     }
 
     fn byte(&self, char_pos: usize) -> usize {
-        self.text.char_indices().nth(char_pos).map_or(self.text.len(), |(b, _)| b)
+        self.text
+            .char_indices()
+            .nth(char_pos)
+            .map_or(self.text.len(), |(b, _)| b)
     }
 
     fn len(&self) -> usize {
@@ -120,7 +123,13 @@ impl Input {
     pub fn view(&self, width: usize) -> (String, usize) {
         let width = width.max(1);
         let start = (self.cursor + 1).saturating_sub(width);
-        let text = self.text.chars().skip(start).take(width).map(|c| if c == '\n' { '⏎' } else { c }).collect();
+        let text = self
+            .text
+            .chars()
+            .skip(start)
+            .take(width)
+            .map(|c| if c == '\n' { '⏎' } else { c })
+            .collect();
         (text, self.cursor - start)
     }
 }
@@ -143,8 +152,14 @@ pub fn expand(text: &str) -> PathBuf {
 pub fn complete_path(text: &str) -> (String, Vec<String>) {
     let split = text.rfind(['/', MAIN_SEPARATOR]).map_or(0, |i| i + 1);
     let (dir_text, prefix) = text.split_at(split);
-    let dir = if dir_text.is_empty() { PathBuf::from(".") } else { expand(dir_text) };
-    let Ok(entries) = std::fs::read_dir(&dir) else { return (text.to_string(), Vec::new()) };
+    let dir = if dir_text.is_empty() {
+        PathBuf::from(".")
+    } else {
+        expand(dir_text)
+    };
+    let Ok(entries) = std::fs::read_dir(&dir) else {
+        return (text.to_string(), Vec::new());
+    };
     let mut matches: Vec<(String, bool)> = entries
         .filter_map(|e| e.ok())
         .filter_map(|e| {
@@ -169,7 +184,10 @@ pub fn complete_path(text: &str) -> (String, Vec<String>) {
                     common = chars.as_str();
                 }
             }
-            let names = many.iter().map(|(n, d)| if *d { format!("{n}/") } else { n.clone() }).collect();
+            let names = many
+                .iter()
+                .map(|(n, d)| if *d { format!("{n}/") } else { n.clone() })
+                .collect();
             (format!("{dir_text}{common}"), names)
         }
     }
@@ -235,7 +253,10 @@ mod tests {
         let (text, names) = complete_path(&format!("{base}pro"));
         assert_eq!(text, format!("{base}proj"));
         assert_eq!(names, vec!["proj-a.toml", "proj-b.toml", "projects/"]);
-        assert_eq!(complete_path(&format!("{base}proje")).0, format!("{base}projects/"));
+        assert_eq!(
+            complete_path(&format!("{base}proje")).0,
+            format!("{base}projects/")
+        );
         assert_eq!(complete_path(&format!("{base}zzz")).0, format!("{base}zzz"));
         std::fs::remove_dir_all(&dir).unwrap();
     }

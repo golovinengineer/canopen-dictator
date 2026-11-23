@@ -22,7 +22,11 @@ pub enum Py {
     Str(String),
     List(Vec<Py>),
     Dict(Vec<(Py, Py)>),
-    Object { module: String, class: String, attrs: Vec<(String, Py)> },
+    Object {
+        module: String,
+        class: String,
+        attrs: Vec<(String, Py)>,
+    },
 }
 
 impl Py {
@@ -86,7 +90,10 @@ impl<'a, 'input> Pickle<'a, 'input> {
             bail!("pickle nested too deeply (reference cycle?)");
         }
         if let Some(r) = n.attribute("refid") {
-            let target = *self.ids.get(r).ok_or_else(|| anyhow!("dangling refid {r}"))?;
+            let target = *self
+                .ids
+                .get(r)
+                .ok_or_else(|| anyhow!("dangling refid {r}"))?;
             return self.value(target, depth + 1);
         }
         let ty = n
@@ -121,7 +128,10 @@ impl<'a, 'input> Pickle<'a, 'input> {
                             .find(|c| c.tag_name().name() == tag)
                             .ok_or_else(|| anyhow!("dict entry without <{tag}>"))
                     };
-                    items.push((self.value(part("key")?, depth + 1)?, self.value(part("val")?, depth + 1)?));
+                    items.push((
+                        self.value(part("key")?, depth + 1)?,
+                        self.value(part("val")?, depth + 1)?,
+                    ));
                 }
                 Py::Dict(items)
             }
@@ -142,11 +152,17 @@ impl<'a, 'input> Pickle<'a, 'input> {
 
 /// Parse a `gnosis.xml.pickle` document into its root object.
 pub fn parse_pickle(text: &str) -> Result<Py> {
-    let opts = ParsingOptions { allow_dtd: true, ..ParsingOptions::default() };
+    let opts = ParsingOptions {
+        allow_dtd: true,
+        ..ParsingOptions::default()
+    };
     let doc = Document::parse_with_options(text, opts)?;
     let root = doc.root_element();
     if root.tag_name().name() != "PyObject" {
-        bail!("not a CanFestival .od file (root element <{}>)", root.tag_name().name());
+        bail!(
+            "not a CanFestival .od file (root element <{}>)",
+            root.tag_name().name()
+        );
     }
     let ids = doc
         .descendants()
@@ -215,7 +231,8 @@ fn unsafe_string(s: &str) -> String {
             b'v' => out.push(0x0B),
             b'\n' => {} // line continuation
             b'x' if i + 2 <= b.len()
-                && let Ok(v) = u8::from_str_radix(std::str::from_utf8(&b[i..i + 2]).unwrap_or(""), 16) =>
+                && let Ok(v) =
+                    u8::from_str_radix(std::str::from_utf8(&b[i..i + 2]).unwrap_or(""), 16) =>
             {
                 out.push(v);
                 i += 2;
@@ -251,8 +268,12 @@ impl Writer {
     /// `<tag name="..." type="..." .../>` or a container with children.
     fn value(&mut self, indent: usize, tag: &str, name: Option<&str>, v: &Py) {
         let pad = " ".repeat(indent);
-        let name = name.map(|n| format!(" name=\"{}\"", escape(n))).unwrap_or_default();
-        let scalar = |ty: &str, value: &str| format!("{pad}<{tag}{name} type=\"{ty}\" value=\"{value}\" />\n");
+        let name = name
+            .map(|n| format!(" name=\"{}\"", escape(n)))
+            .unwrap_or_default();
+        let scalar = |ty: &str, value: &str| {
+            format!("{pad}<{tag}{name} type=\"{ty}\" value=\"{value}\" />\n")
+        };
         match v {
             Py::None => {
                 let _ = writeln!(self.out, "{pad}<{tag}{name} type=\"None\" />");
@@ -280,7 +301,11 @@ impl Writer {
                 }
                 let _ = writeln!(self.out, "{pad}</{tag}>");
             }
-            Py::Object { module, class, attrs } => {
+            Py::Object {
+                module,
+                class,
+                attrs,
+            } => {
                 let id = self.id();
                 let _ = writeln!(
                     self.out,
@@ -301,10 +326,17 @@ impl Writer {
 /// out like the files objdictedit saves. Ids are sequential, so the output
 /// depends only on the value.
 pub fn write_pickle(root: &Py) -> String {
-    let mut w = Writer { out: String::new(), next_id: 0 };
+    let mut w = Writer {
+        out: String::new(),
+        next_id: 0,
+    };
     w.out += "<?xml version=\"1.0\"?>\n<!DOCTYPE PyObject SYSTEM \"PyObjects.dtd\">\n";
     match root {
-        Py::Object { module, class, attrs } => {
+        Py::Object {
+            module,
+            class,
+            attrs,
+        } => {
             let id = w.id();
             let _ = writeln!(
                 w.out,
@@ -340,11 +372,17 @@ mod tests {
             module: "node".into(),
             class: "Node".into(),
             attrs: vec![
-                ("S".into(), Py::Str("a<b> & \"c\" 'd'\nline\t\\ 25 \u{b0}C".into())),
+                (
+                    "S".into(),
+                    Py::Str("a<b> & \"c\" 'd'\nline\t\\ 25 \u{b0}C".into()),
+                ),
                 (
                     "D".into(),
                     Py::Dict(vec![
-                        (Py::Int(4096), Py::List(vec![Py::Bool(false), Py::Float("1.5".into())])),
+                        (
+                            Py::Int(4096),
+                            Py::List(vec![Py::Bool(false), Py::Float("1.5".into())]),
+                        ),
                         (Py::Str("k".into()), Py::Dict(Vec::new())),
                     ]),
                 ),
@@ -353,10 +391,15 @@ mod tests {
         };
         let text = write_pickle(&root);
         assert_eq!(parse_pickle(&text).unwrap(), root);
-        assert!(text.contains("  <entry>\n    <key type=\"numeric\" value=\"4096\" />"), "{text}");
+        assert!(
+            text.contains("  <entry>\n    <key type=\"numeric\" value=\"4096\" />"),
+            "{text}"
+        );
         // What Python 2 gnosis writes for the same string.
         assert!(
-            text.contains(r#"value="a&lt;b&gt; &amp; &quot;c&quot; &apos;d&apos;\nline\t\\ 25 \xc2\xb0C""#),
+            text.contains(
+                r#"value="a&lt;b&gt; &amp; &quot;c&quot; &apos;d&apos;\nline\t\\ 25 \xc2\xb0C""#
+            ),
             "{text}"
         );
     }
@@ -390,5 +433,4 @@ mod tests {
         assert_eq!(py.attr("L"), Some(&expected));
         assert_eq!(py.attr("R"), Some(&expected));
     }
-
 }

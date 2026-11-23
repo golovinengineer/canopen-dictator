@@ -37,7 +37,11 @@ pub fn open(path: &Path) -> Result<(ObjectDictionary, Vec<String>)> {
         "xdd" | "xdc" | "xpd" => (xdd::load(path)?, Vec::new()),
         _ => (project::load(path)?, Vec::new()),
     };
-    warnings.extend(od.value_problems().into_iter().map(|p| format!("{p}; fix it before exporting")));
+    warnings.extend(
+        od.value_problems()
+            .into_iter()
+            .map(|p| format!("{p}; fix it before exporting")),
+    );
     Ok((od, warnings))
 }
 
@@ -49,7 +53,10 @@ pub fn check_values(od: &ObjectDictionary) -> Result<()> {
     match problems.len() {
         0 => Ok(()),
         1 => bail!("not exported: {}", problems[0]),
-        n => bail!("not exported, {n} values don't fit their type: {}", problems.join("; ")),
+        n => bail!(
+            "not exported, {n} values don't fit their type: {}",
+            problems.join("; ")
+        ),
     }
 }
 
@@ -105,7 +112,10 @@ pub fn export_markdown(od: &ObjectDictionary, path: &Path, project_file: &str) -
 #[cfg(any(feature = "gui", feature = "tui"))]
 pub fn open_message(path: &Path, count: usize, warnings: &[String]) -> String {
     let mut msg = if is_import(path) {
-        format!("Imported {count} objects from {}; save to create a project file", path.display())
+        format!(
+            "Imported {count} objects from {}; save to create a project file",
+            path.display()
+        )
     } else {
         format!("Opened {} ({count} objects)", path.display())
     };
@@ -121,14 +131,19 @@ mod tests {
     use std::path::PathBuf;
 
     fn asset(name: &str) -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/example").join(name)
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("assets/example")
+            .join(name)
     }
 
     #[test]
     fn example_files_open_without_value_problems() {
         for name in ["example.objdict.toml", "example.xdd", "example.od"] {
             let (_, warnings) = open(&asset(name)).unwrap();
-            assert!(!warnings.iter().any(|w| w.contains("before exporting")), "{name}: {warnings:?}");
+            assert!(
+                !warnings.iter().any(|w| w.contains("before exporting")),
+                "{name}: {warnings:?}"
+            );
         }
     }
 
@@ -143,12 +158,17 @@ mod tests {
             ("ObjDict.c", export_c),
             ("example.od", export_od),
             ("example.eds", export_eds),
-            ("example.md", |od, p| export_markdown(od, p, "example.objdict.toml")),
+            ("example.md", |od, p| {
+                export_markdown(od, p, "example.objdict.toml")
+            }),
         ];
         for (name, export) in exports {
             let path = dir.join(name);
             let err = export(&od, &path).unwrap_err();
-            assert_eq!(format!("{err:#}"), "not exported: 0x1001: default 300 does not fit UNSIGNED8");
+            assert_eq!(
+                format!("{err:#}"),
+                "not exported: 0x1001: default 300 does not fit UNSIGNED8"
+            );
             assert!(!path.exists(), "{name} was written");
         }
 
@@ -159,6 +179,9 @@ mod tests {
         let (opened, warnings) = open(&saved).unwrap();
         std::fs::remove_dir_all(&dir).unwrap();
         assert_eq!(opened.objects[&0x1001].subs[0].default, "300");
-        assert_eq!(warnings, ["0x1001: default 300 does not fit UNSIGNED8; fix it before exporting"]);
+        assert_eq!(
+            warnings,
+            ["0x1001: default 300 does not fit UNSIGNED8; fix it before exporting"]
+        );
     }
 }

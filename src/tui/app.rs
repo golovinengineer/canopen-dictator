@@ -50,7 +50,10 @@ pub enum Target {
     Sub(&'static str),
     Setting(&'static str),
     /// The kind picked for a new object, after its index and name.
-    NewObject { index: String, name: String },
+    NewObject {
+        index: String,
+        name: String,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -73,8 +76,20 @@ pub struct Field {
 }
 
 impl Field {
-    fn new(key: &'static str, label: &'static str, value: impl Into<String>, kind: FieldKind) -> Self {
-        Field { key, label, value: value.into(), kind, locked: None, hint: "" }
+    fn new(
+        key: &'static str,
+        label: &'static str,
+        value: impl Into<String>,
+        kind: FieldKind,
+    ) -> Self {
+        Field {
+            key,
+            label,
+            value: value.into(),
+            kind,
+            locked: None,
+            hint: "",
+        }
     }
 
     fn hint(mut self, hint: &'static str) -> Self {
@@ -101,7 +116,12 @@ pub enum ExportKind {
 }
 
 impl ExportKind {
-    pub const ALL: [ExportKind; 4] = [ExportKind::C, ExportKind::Od, ExportKind::Eds, ExportKind::Markdown];
+    pub const ALL: [ExportKind; 4] = [
+        ExportKind::C,
+        ExportKind::Od,
+        ExportKind::Eds,
+        ExportKind::Markdown,
+    ];
 
     pub fn key(self) -> char {
         match self {
@@ -161,7 +181,10 @@ impl Prompt {
     pub fn label(&self) -> String {
         match self {
             Prompt::NewIndex => "New object index (hex)".into(),
-            Prompt::NewName { index } => format!("Name of object 0x{}", index.trim().trim_start_matches("0x").to_uppercase()),
+            Prompt::NewName { index } => format!(
+                "Name of object 0x{}",
+                index.trim().trim_start_matches("0x").to_uppercase()
+            ),
             Prompt::Open => "Open".into(),
             Prompt::SaveAs { .. } => "Save as".into(),
             Prompt::Export(k) => format!("Export {} to", k.label()),
@@ -169,7 +192,10 @@ impl Prompt {
     }
 
     pub fn is_path(&self) -> bool {
-        matches!(self, Prompt::Open | Prompt::SaveAs { .. } | Prompt::Export(_))
+        matches!(
+            self,
+            Prompt::Open | Prompt::SaveAs { .. } | Prompt::Export(_)
+        )
     }
 }
 
@@ -185,14 +211,28 @@ pub enum Confirm {
 pub enum Mode {
     Normal,
     Filter(Input),
-    Edit { target: Target, input: Input },
-    Pick { target: Target, title: String, options: Vec<&'static str>, cursor: usize },
-    Prompt { prompt: Prompt, input: Input },
+    Edit {
+        target: Target,
+        input: Input,
+    },
+    Pick {
+        target: Target,
+        title: String,
+        options: Vec<&'static str>,
+        cursor: usize,
+    },
+    Prompt {
+        prompt: Prompt,
+        input: Input,
+    },
     Confirm(Confirm),
     Unsaved(After),
     Export(usize),
     Help,
-    Message { title: String, lines: Vec<String> },
+    Message {
+        title: String,
+        lines: Vec<String>,
+    },
 }
 
 pub struct App {
@@ -213,7 +253,8 @@ pub struct App {
     import_source: Option<PathBuf>,
 }
 
-const VALUE_HINT: &str = "Decimal or 0x hex that fits the type, TRUE/FALSE, $NODEID or $NODEID+offset; empty for none";
+const VALUE_HINT: &str =
+    "Decimal or 0x hex that fits the type, TRUE/FALSE, $NODEID or $NODEID+offset; empty for none";
 
 impl App {
     pub fn new() -> Self {
@@ -253,40 +294,101 @@ impl App {
     // ------------------------------------------------------------- forms
 
     pub fn object_fields(&self) -> Vec<Field> {
-        let Some((index, o)) = self.ed.selected_object() else { return Vec::new() };
+        let Some((index, o)) = self.ed.selected_object() else {
+            return Vec::new();
+        };
         vec![
-            Field::new("index", "Index", format!("{index:04X}"), FieldKind::Text).hint("Hex, from 0x1000; renumbers the object"),
+            Field::new("index", "Index", format!("{index:04X}"), FieldKind::Text)
+                .hint("Hex, from 0x1000; renumbers the object"),
             Field::new("name", "Name", &o.name, FieldKind::Text),
-            Field::new("kind", "Kind", o.kind.short(), FieldKind::Choice(ObjectKind::ALL.map(ObjectKind::short).to_vec())),
-            Field::new("enabled", "Enabled", (!o.disabled).to_string(), FieldKind::Bool).hint("Disabled objects are left out of every export"),
-            Field::new("callback", "Callback", o.callback.to_string(), FieldKind::Bool).hint("Generate a CanFestival write callback for this object"),
-            Field::new("description", "Description", &o.description, FieldKind::Text),
+            Field::new(
+                "kind",
+                "Kind",
+                o.kind.short(),
+                FieldKind::Choice(ObjectKind::ALL.map(ObjectKind::short).to_vec()),
+            ),
+            Field::new(
+                "enabled",
+                "Enabled",
+                (!o.disabled).to_string(),
+                FieldKind::Bool,
+            )
+            .hint("Disabled objects are left out of every export"),
+            Field::new(
+                "callback",
+                "Callback",
+                o.callback.to_string(),
+                FieldKind::Bool,
+            )
+            .hint("Generate a CanFestival write callback for this object"),
+            Field::new(
+                "description",
+                "Description",
+                &o.description,
+                FieldKind::Text,
+            ),
         ]
     }
 
     pub fn sub_fields(&self) -> Vec<Field> {
-        let Some((_, o)) = self.ed.selected_object() else { return Vec::new() };
-        let Some(s) = self.ed.selected_sub_object() else { return Vec::new() };
+        let Some((_, o)) = self.ed.selected_object() else {
+            return Vec::new();
+        };
+        let Some(s) = self.ed.selected_sub_object() else {
+            return Vec::new();
+        };
         let mut name = Field::new("name", "Name", &s.name, FieldKind::Text);
         if o.kind == ObjectKind::Var {
             name.locked = Some("A VAR's value is named after the object");
         }
         vec![
             name,
-            Field::new("type", "Type", s.data_type.cia_name(), FieldKind::Choice(DataType::ALL.map(DataType::cia_name).to_vec())),
-            Field::new("access", "Access", s.access.short(), FieldKind::Choice(Access::ALL.map(Access::short).to_vec())),
-            Field::new("pdo", "PDO mapping", s.pdo.short(), FieldKind::Choice(PdoMapping::ALL.map(PdoMapping::short).to_vec())),
+            Field::new(
+                "type",
+                "Type",
+                s.data_type.cia_name(),
+                FieldKind::Choice(DataType::ALL.map(DataType::cia_name).to_vec()),
+            ),
+            Field::new(
+                "access",
+                "Access",
+                s.access.short(),
+                FieldKind::Choice(Access::ALL.map(Access::short).to_vec()),
+            ),
+            Field::new(
+                "pdo",
+                "PDO mapping",
+                s.pdo.short(),
+                FieldKind::Choice(PdoMapping::ALL.map(PdoMapping::short).to_vec()),
+            ),
             Field::new("default", "Default", &s.default, FieldKind::Text).hint(VALUE_HINT),
             Field::new("min", "Minimum", &s.min, FieldKind::Text).hint(VALUE_HINT),
             Field::new("max", "Maximum", &s.max, FieldKind::Text).hint(VALUE_HINT),
-            Field::new("save", "Save", s.save.to_string(), FieldKind::Bool).hint("Store in non-volatile memory (CanFestival)"),
-            Field::new("description", "Description", &s.description, FieldKind::Text),
+            Field::new("save", "Save", s.save.to_string(), FieldKind::Bool)
+                .hint("Store in non-volatile memory (CanFestival)"),
+            Field::new(
+                "description",
+                "Description",
+                &s.description,
+                FieldKind::Text,
+            ),
         ]
     }
 
     fn setting_field(f: SettingField) -> Field {
-        let kind = if f.key == "node_type" { FieldKind::Choice(vec!["slave", "master"]) } else { FieldKind::Text };
-        Field { key: f.key, label: f.label, value: f.value, kind, locked: None, hint: f.hint }
+        let kind = if f.key == "node_type" {
+            FieldKind::Choice(vec!["slave", "master"])
+        } else {
+            FieldKind::Text
+        };
+        Field {
+            key: f.key,
+            label: f.label,
+            value: f.value,
+            kind,
+            locked: None,
+            hint: f.hint,
+        }
     }
 
     /// Device fields, then CanFestival fields; also returns how many are
@@ -294,15 +396,23 @@ impl App {
     pub fn setting_fields(&self) -> (Vec<Field>, usize) {
         let device = self.ed.device_fields();
         let n = device.len();
-        let fields = device.into_iter().chain(self.ed.canfestival_fields()).map(Self::setting_field).collect();
+        let fields = device
+            .into_iter()
+            .chain(self.ed.canfestival_fields())
+            .map(Self::setting_field)
+            .collect();
         (fields, n)
     }
 
     /// The form under the cursor and the cursor in it, for the focused pane.
     fn current_form(&self) -> Option<(Vec<Field>, usize, MakeTarget)> {
         match (self.screen, self.focus) {
-            (Screen::Settings, _) => Some((self.setting_fields().0, self.setting_field, Target::Setting)),
-            (Screen::Editor, Focus::Object) => Some((self.object_fields(), self.obj_field, Target::Object)),
+            (Screen::Settings, _) => {
+                Some((self.setting_fields().0, self.setting_field, Target::Setting))
+            }
+            (Screen::Editor, Focus::Object) => {
+                Some((self.object_fields(), self.obj_field, Target::Object))
+            }
             (Screen::Editor, Focus::Sub) => Some((self.sub_fields(), self.sub_field, Target::Sub)),
             _ => None,
         }
@@ -320,9 +430,10 @@ impl App {
     pub fn input_ok(&self, target: &Target, text: &str) -> bool {
         match target {
             Target::Object("index") => self.ed.index_ok(text, self.ed.selected()),
-            Target::Sub("default" | "min" | "max") => {
-                self.ed.selected_sub_object().is_none_or(|s| value_ok(text, s.data_type))
-            }
+            Target::Sub("default" | "min" | "max") => self
+                .ed
+                .selected_sub_object()
+                .is_none_or(|s| value_ok(text, s.data_type)),
             Target::Setting(key) => self.ed.setting_ok(key, text),
             _ => true,
         }
@@ -359,7 +470,10 @@ impl App {
             },
             Target::Setting(key) => {
                 let mut od = self.ed.od.clone();
-                canopen_dictator_core::editor::apply_setting(&mut od, key, text).err().map(|e| format!("{e:#}")).unwrap_or_default()
+                canopen_dictator_core::editor::apply_setting(&mut od, key, text)
+                    .err()
+                    .map(|e| format!("{e:#}"))
+                    .unwrap_or_default()
             }
             _ => String::new(),
         }
@@ -390,7 +504,9 @@ impl App {
 
     /// Enter on a form row: edit text, toggle a check box, pick a choice.
     fn activate(&mut self, toggle_only: bool) {
-        let Some((fields, cursor, target)) = self.current_form() else { return };
+        let Some((fields, cursor, target)) = self.current_form() else {
+            return;
+        };
         let Some(f) = fields.get(cursor) else { return };
         if let Some(why) = f.locked {
             self.info(why);
@@ -404,10 +520,20 @@ impl App {
                 self.report(result);
             }
             _ if toggle_only => {}
-            FieldKind::Text => self.mode = Mode::Edit { target, input: Input::new(f.value.clone()) },
+            FieldKind::Text => {
+                self.mode = Mode::Edit {
+                    target,
+                    input: Input::new(f.value.clone()),
+                }
+            }
             FieldKind::Choice(options) => {
                 let cursor = options.iter().position(|o| *o == f.value).unwrap_or(0);
-                self.mode = Mode::Pick { target, title: f.label.to_string(), options: options.clone(), cursor };
+                self.mode = Mode::Pick {
+                    target,
+                    title: f.label.to_string(),
+                    options: options.clone(),
+                    cursor,
+                };
             }
         }
     }
@@ -439,10 +565,15 @@ impl App {
         if visible.is_empty() {
             return;
         }
-        let pos = self.ed.selected().and_then(|s| visible.iter().position(|i| *i == s));
+        let pos = self
+            .ed
+            .selected()
+            .and_then(|s| visible.iter().position(|i| *i == s));
         let next = match pos {
             None => 0,
-            Some(p) => (p as isize).saturating_add(by).clamp(0, visible.len() as isize - 1) as usize,
+            Some(p) => (p as isize)
+                .saturating_add(by)
+                .clamp(0, visible.len() as isize - 1) as usize,
         };
         self.select(Some(visible[next]));
     }
@@ -456,7 +587,9 @@ impl App {
     }
 
     fn move_sub(&mut self, by: isize) {
-        let Some((_, o)) = self.ed.selected_object() else { return };
+        let Some((_, o)) = self.ed.selected_object() else {
+            return;
+        };
         if o.subs.is_empty() {
             return;
         }
@@ -471,7 +604,9 @@ impl App {
             return;
         }
         let cursor = self.form_cursor();
-        *cursor = (*cursor as isize).saturating_add(by).clamp(0, len as isize - 1) as usize;
+        *cursor = (*cursor as isize)
+            .saturating_add(by)
+            .clamp(0, len as isize - 1) as usize;
     }
 
     // -------------------------------------------------------------- files
@@ -497,8 +632,15 @@ impl App {
                     self.import_source = None;
                 }
                 if !warnings.is_empty() {
-                    let title = if import { "Import warnings" } else { "Warnings" };
-                    self.mode = Mode::Message { title: format!("{title} ({})", warnings.len()), lines: warnings };
+                    let title = if import {
+                        "Import warnings"
+                    } else {
+                        "Warnings"
+                    };
+                    self.mode = Mode::Message {
+                        title: format!("{title} ({})", warnings.len()),
+                        lines: warnings,
+                    };
                 }
                 self.reset_view();
             }
@@ -537,7 +679,10 @@ impl App {
             After::New => self.new_project(),
             After::Open => {
                 let start = self.beside_project("");
-                self.mode = Mode::Prompt { prompt: Prompt::Open, input: Input::new(start) };
+                self.mode = Mode::Prompt {
+                    prompt: Prompt::Open,
+                    input: Input::new(start),
+                };
             }
         }
     }
@@ -549,12 +694,18 @@ impl App {
             None => {
                 let name = match &self.import_source {
                     Some(src) => {
-                        let stem = src.file_stem().and_then(|s| s.to_str()).unwrap_or("project");
+                        let stem = src
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("project");
                         display_path(&src.with_file_name(format!("{stem}.{}", project::EXTENSION)))
                     }
                     None => format!("project.{}", project::EXTENSION),
                 };
-                self.mode = Mode::Prompt { prompt: Prompt::SaveAs { after }, input: Input::new(name) };
+                self.mode = Mode::Prompt {
+                    prompt: Prompt::SaveAs { after },
+                    input: Input::new(name),
+                };
             }
         }
     }
@@ -583,7 +734,10 @@ impl App {
 
     fn start_export(&mut self, kind: ExportKind) {
         let path = self.beside_project(&kind.file_name(&self.ed));
-        self.mode = Mode::Prompt { prompt: Prompt::Export(kind), input: Input::new(path) };
+        self.mode = Mode::Prompt {
+            prompt: Prompt::Export(kind),
+            input: Input::new(path),
+        };
     }
 
     // --------------------------------------------------------------- keys
@@ -606,14 +760,21 @@ impl App {
             }
             Mode::Filter(input) => self.filter_key(input, key),
             Mode::Edit { target, input } => self.edit_key(target, input, key),
-            Mode::Pick { target, title, options, cursor } => self.pick_key(target, title, options, cursor, key),
+            Mode::Pick {
+                target,
+                title,
+                options,
+                cursor,
+            } => self.pick_key(target, title, options, cursor, key),
             Mode::Prompt { prompt, input } => self.prompt_key(prompt, input, key),
             Mode::Confirm(c) => self.confirm_key(c, key),
             Mode::Unsaved(after) => self.unsaved_key(after, key),
             Mode::Export(cursor) => self.export_key(cursor, key),
             Mode::Help => Mode::Normal,
             Mode::Message { title, lines } => match key.code {
-                KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') | KeyCode::Char(' ') => Mode::Normal,
+                KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') | KeyCode::Char(' ') => {
+                    Mode::Normal
+                }
                 _ => Mode::Message { title, lines },
             },
         };
@@ -669,7 +830,10 @@ impl App {
             }
             _ => {}
         }
-        if matches!(key.code, KeyCode::Tab | KeyCode::BackTab | KeyCode::Char('/')) {
+        if matches!(
+            key.code,
+            KeyCode::Tab | KeyCode::BackTab | KeyCode::Char('/')
+        ) {
             return;
         }
         match self.focus {
@@ -729,8 +893,15 @@ impl App {
     fn add_object(&mut self) {
         // Suggest the next free index after the selection.
         let from = self.ed.selected().map_or(0x2000, |i| i.saturating_add(1));
-        let suggestion = self.ed.free_index(from).map(|i| format!("{i:04X}")).unwrap_or_default();
-        self.mode = Mode::Prompt { prompt: Prompt::NewIndex, input: Input::new(suggestion) };
+        let suggestion = self
+            .ed
+            .free_index(from)
+            .map(|i| format!("{i:04X}"))
+            .unwrap_or_default();
+        self.mode = Mode::Prompt {
+            prompt: Prompt::NewIndex,
+            input: Input::new(suggestion),
+        };
     }
 
     fn ask_delete_object(&mut self) {
@@ -753,7 +924,9 @@ impl App {
 
     fn ask_delete_sub(&mut self) {
         let check = match (self.ed.selected_object(), self.ed.selected_sub_object()) {
-            (Some((_, o)), _) if o.kind == ObjectKind::Var => Err(anyhow!("a VAR has no subindexes")),
+            (Some((_, o)), _) if o.kind == ObjectKind::Var => {
+                Err(anyhow!("a VAR has no subindexes"))
+            }
             (_, Some(s)) if s.sub == 0 => Err(anyhow!("subindex 0 cannot be removed")),
             (_, Some(_)) => Ok(()),
             _ => Err(anyhow!("no subindex selected")),
@@ -810,15 +983,26 @@ impl App {
         }
     }
 
-    fn pick_key(&mut self, target: Target, title: String, options: Vec<&'static str>, mut cursor: usize, key: KeyEvent) -> Mode {
+    fn pick_key(
+        &mut self,
+        target: Target,
+        title: String,
+        options: Vec<&'static str>,
+        mut cursor: usize,
+        key: KeyEvent,
+    ) -> Mode {
         match key.code {
             KeyCode::Esc | KeyCode::Char('q') => return Mode::Normal,
             KeyCode::Up | KeyCode::Char('k') => cursor = cursor.saturating_sub(1),
-            KeyCode::Down | KeyCode::Char('j') => cursor = (cursor + 1).min(options.len().saturating_sub(1)),
+            KeyCode::Down | KeyCode::Char('j') => {
+                cursor = (cursor + 1).min(options.len().saturating_sub(1))
+            }
             KeyCode::Home | KeyCode::Char('g') => cursor = 0,
             KeyCode::End | KeyCode::Char('G') => cursor = options.len().saturating_sub(1),
             KeyCode::Enter => {
-                let Some(value) = options.get(cursor) else { return Mode::Normal };
+                let Some(value) = options.get(cursor) else {
+                    return Mode::Normal;
+                };
                 let result = self.apply(&target, value);
                 let type_changed = result.is_ok() && matches!(target, Target::Sub("type"));
                 self.report(result);
@@ -830,7 +1014,12 @@ impl App {
             }
             _ => {}
         }
-        Mode::Pick { target, title, options, cursor }
+        Mode::Pick {
+            target,
+            title,
+            options,
+            cursor,
+        }
     }
 
     fn prompt_key(&mut self, prompt: Prompt, mut input: Input, key: KeyEvent) -> Mode {
@@ -872,10 +1061,18 @@ impl App {
         }
         self.info("");
         match prompt {
-            Prompt::NewIndex => Mode::Prompt { prompt: Prompt::NewName { index: text }, input: Input::new("") },
+            Prompt::NewIndex => Mode::Prompt {
+                prompt: Prompt::NewName { index: text },
+                input: Input::new(""),
+            },
             Prompt::NewName { index } => {
                 let options = ObjectKind::ALL.map(ObjectKind::short).to_vec();
-                Mode::Pick { target: Target::NewObject { index, name: text }, title: "Kind".into(), options, cursor: 0 }
+                Mode::Pick {
+                    target: Target::NewObject { index, name: text },
+                    title: "Kind".into(),
+                    options,
+                    cursor: 0,
+                }
             }
             Prompt::Open => {
                 self.open_path(&expand(&text));

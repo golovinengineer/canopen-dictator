@@ -43,7 +43,9 @@ fn export(args: &[String]) -> Result<()> {
     while let Some(arg) = it.next() {
         match arg.as_str() {
             "--c" | "--od" | "--eds" | "--md" => {
-                let path = it.next().ok_or_else(|| anyhow!("{arg} needs a file path"))?;
+                let path = it
+                    .next()
+                    .ok_or_else(|| anyhow!("{arg} needs a file path"))?;
                 outputs.push((arg.clone(), PathBuf::from(path)));
             }
             other if other.starts_with("--") => bail!("unknown option {other}"),
@@ -60,7 +62,10 @@ fn export(args: &[String]) -> Result<()> {
     let (od, warnings) = io::open(&input)?;
     io::check_values(&od)?;
     print_warnings(warnings);
-    let project_name = input.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+    let project_name = input
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default();
     for (kind, path) in outputs {
         match kind.as_str() {
             "--c" => io::export_c(&od, &path)?,
@@ -127,10 +132,16 @@ impl Ui {
 /// no terminal and gets the window. When only one front end is built, the
 /// automatic choice falls back to it; an explicit request does not.
 fn choose_ui(flag: Option<Ui>) -> Result<Ui> {
-    let env = std::env::var("DICTATOR_UI").ok().and_then(|v| Ui::parse(&v));
+    let env = std::env::var("DICTATOR_UI")
+        .ok()
+        .and_then(|v| Ui::parse(&v));
     let explicit = flag.or(env);
     let ui = explicit.unwrap_or_else(|| {
-        if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() { Ui::Tui } else { Ui::Gui }
+        if std::io::stdin().is_terminal() && std::io::stdout().is_terminal() {
+            Ui::Tui
+        } else {
+            Ui::Gui
+        }
     });
     if ui.built() {
         return Ok(ui);
@@ -138,7 +149,10 @@ fn choose_ui(flag: Option<Ui>) -> Result<Ui> {
     let other = if ui == Ui::Gui { Ui::Tui } else { Ui::Gui };
     match explicit {
         None if other.built() => Ok(other),
-        _ => bail!("this build of dictator has no {} user interface", if ui == Ui::Gui { "window" } else { "terminal" }),
+        _ => bail!(
+            "this build of dictator has no {} user interface",
+            if ui == Ui::Gui { "window" } else { "terminal" }
+        ),
     }
 }
 

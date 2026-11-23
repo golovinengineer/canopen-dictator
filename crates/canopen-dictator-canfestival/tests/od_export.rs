@@ -11,14 +11,28 @@ fn normalize(v: &Py) -> Py {
     match v {
         Py::List(items) => Py::List(items.iter().map(normalize).collect()),
         Py::Dict(items) => {
-            let mut items: Vec<_> = items.iter().map(|(k, v)| (normalize(k), normalize(v))).collect();
+            let mut items: Vec<_> = items
+                .iter()
+                .map(|(k, v)| (normalize(k), normalize(v)))
+                .collect();
             items.sort_by_key(|(k, _)| format!("{k:?}"));
             Py::Dict(items)
         }
-        Py::Object { module, class, attrs } => {
-            let mut attrs: Vec<_> = attrs.iter().map(|(n, v)| (n.clone(), normalize(v))).collect();
+        Py::Object {
+            module,
+            class,
+            attrs,
+        } => {
+            let mut attrs: Vec<_> = attrs
+                .iter()
+                .map(|(n, v)| (n.clone(), normalize(v)))
+                .collect();
             attrs.sort_by(|a, b| a.0.cmp(&b.0));
-            Py::Object { module: module.clone(), class: class.clone(), attrs }
+            Py::Object {
+                module: module.clone(),
+                class: class.clone(),
+                attrs,
+            }
         }
         other => other.clone(),
     }
@@ -45,7 +59,10 @@ fn assert_same_node(ours: &Py, theirs: &Py) {
                 assert_eq!(Some(vx), vy, "{name}[{k:?}]");
             }
             for (k, _) in dy {
-                assert!(dx.iter().any(|(kx, _)| kx == k), "{name}[{k:?}] missing in ours");
+                assert!(
+                    dx.iter().any(|(kx, _)| kx == k),
+                    "{name}[{k:?}] missing in ours"
+                );
             }
         }
         assert_eq!(x, y, "{name}");
