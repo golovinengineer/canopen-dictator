@@ -43,7 +43,7 @@ jobs:
         run: scripts/bundle-macos.sh
 
       - name: Upload artifact (dry run)
-        if: github.event_name == 'workflow_dispatch'
+        if: github.ref_type != 'tag'
         uses: actions/upload-artifact@v7
         with:
           name: Dictator-${{ steps.version.outputs.version }}-macos-universal
