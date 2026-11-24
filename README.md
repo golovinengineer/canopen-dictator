@@ -117,7 +117,7 @@ it from crates.io; the package is `canopen-dictator`, the command it
 installs is `dictator`:
 
 ```sh
-cargo install canopen-dictator --version 0.1.0-alpha.2
+cargo install canopen-dictator
 ```
 
 Or build it from source:
