@@ -293,7 +293,8 @@ object-dictionary:
 ```
 
 Later jobs can pick up the generated files as artifacts. Running the export
-as a step of the firmware build itself works the same way. Attach the EDS
+as a step of the firmware build itself works the same way; with CMake,
+[Using with CMake](#using-with-cmake) does that for you. Attach the EDS
 and the Markdown to a release so integrators get files that match the
 firmware.
 
@@ -305,6 +306,37 @@ project but forgets to regenerate:
 dictator export device.objdict.toml --c firmware/ObjDict.c
 git diff --exit-code firmware/
 ```
+
+## Using with CMake
+
+`cmake/Dictator.cmake` (CMake 3.20 or newer) generates the object
+dictionary as part of the firmware build, so only the project file is
+committed:
+
+```cmake
+find_package(Dictator 0.1 REQUIRED)  # or include(path/to/Dictator.cmake)
+dictator_add_object_dictionary(od
+    PROJECT  ${CMAKE_CURRENT_SOURCE_DIR}/device.objdict.toml  # or .xdd / .od
+    STACK    canfestival
+    NAME     ObjDict           # ObjDict.c / ObjDict.h
+    LINK     canfestival       # your target that provides CanFestival's headers
+    EDS      device.eds        # optional, built by `od_docs`
+    MARKDOWN device.md)        # optional, built by `od_docs`
+target_link_libraries(firmware PRIVATE od)
+```
+
+`od` is a static library built from `<build>/od/ObjDict.c`; linking it makes
+`#include "ObjDict.h"` work and brings the `LINK` targets along. The code is
+regenerated only when the project file or the `dictator` binary changes,
+always with `--strict`. `EDS` and `MARKDOWN` paths are relative to the current
+build directory; `cmake --build build --target od_docs` writes them.
+
+The module runs `DICTATOR_EXECUTABLE` if set, else `dictator` from `PATH`.
+For `find_package`, point CMake at this repository's `cmake/` directory
+(`-DDictator_DIR=<checkout>/cmake`); a requested version is checked against
+`dictator --version`. Dictator runs on the build host, so cross-compiling
+the firmware makes no difference. [`tests/cmake/`](tests/cmake/) is a
+working example.
 
 ## The project file
 
@@ -381,8 +413,6 @@ against files made by the original tools. Planned next:
 - templates for standard objects;
 - undo/redo;
 - CANopenNode output;
-- a CMake module that generates the object dictionary as part of the
-  firmware build;
 - packaging.
 
 The [issue tracker](https://github.com/golovinengineer/canopen-dictator/issues) tracks all of it.

@@ -42,3 +42,17 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Test without GUI and TUI
         run: cargo test --workspace --locked --no-default-features
+
+  cmake:
+    name: Linux (CMake integration)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build without GUI and TUI
+        run: cargo build --locked --no-default-features
+      - name: CMake test project (Makefiles)
+        run: tests/cmake/run.sh "$PWD/target/debug/dictator" "$RUNNER_TEMP/cmake-make"
+      - name: CMake test project (Ninja)
+        run: tests/cmake/run.sh "$PWD/target/debug/dictator" "$RUNNER_TEMP/cmake-ninja" -G Ninja
