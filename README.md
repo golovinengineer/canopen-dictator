@@ -48,9 +48,17 @@ Dictator aims to be one editor for all of them:
   CanFestival `.od` today. EDS import is next. From one project, generate
   EDS for integrators, Markdown docs, and the C object dictionary for your
   stack.
-- **C library for your stack.** CanFestival C is done and token-identical to
-  CanFestival's own `gen_cfile`, so firmware symbol names don't change when
-  you switch. CANopenNode v4 `OD.c`/`OD.h` is next.
+- **C library for your stack.** CanFestival C is done. Upstream CanFestival
+  is no longer developed, so Dictator targets
+  [co_stack](https://github.com/RoboticsHardwareSolutions/co_stack), a
+  maintained CanFestival fork, and its output is token-identical to that
+  fork's `gen_cfile`, so firmware symbol names don't change when you switch.
+  CANopenNode v4 `OD.c`/`OD.h` is next.
+- **Not tied to one stack.** The same project generates code for each
+  supported stack, so a team moving a device from one stack to another can
+  build both from one dictionary during the move, instead of maintaining it
+  twice. CanFestival and CANopenNode come first; other stacks can follow as
+  they appear.
 - **A project file made for git.** One `*.objdict.toml` per device, written
   in a stable order with one line per subindex and no timestamps. A change
   shows up in review as exactly the lines it touched.
@@ -65,7 +73,7 @@ Dictator aims to be one editor for all of them:
 | `*.objdict.toml` (Dictator project) | ✓ | ✓ | the native format |
 | CANopenEditor XDD (4.x) | ✓ | | |
 | CanFestival `.od` | ✓ | ✓ | opens in `objdictedit` |
-| CanFestival C (`.c` + `.h`) | | ✓ | token-identical to `gen_cfile` |
+| CanFestival C (`.c` + `.h`) | | ✓ | for co_stack; token-identical to `gen_cfile` |
 | EDS | | ✓ | CANopenEditor's layout |
 | Markdown documentation | | ✓ | CANopenEditor's layout |
 
@@ -322,12 +330,12 @@ dictionary as part of the firmware build, so only the project file is
 committed:
 
 ```cmake
-find_package(Dictator 0.1 REQUIRED)  # or include(path/to/Dictator.cmake)
+find_package(Dictator 0.2 REQUIRED)  # or include(path/to/Dictator.cmake)
 dictator_add_object_dictionary(od
     PROJECT  ${CMAKE_CURRENT_SOURCE_DIR}/device.objdict.toml  # or .xdd / .od
     STACK    canfestival
     NAME     ObjDict           # ObjDict.c / ObjDict.h
-    LINK     canfestival       # your target that provides CanFestival's headers
+    LINK     canfestival       # your target that provides the co_stack headers
     EDS      device.eds        # optional, built by `od_docs`
     MARKDOWN device.md)        # optional, built by `od_docs`
 target_link_libraries(firmware PRIVATE od)
