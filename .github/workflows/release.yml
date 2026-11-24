@@ -83,7 +83,7 @@ jobs:
              `xattr -dr com.apple.quarantine /Applications/Dictator.app`
 
           The same binary is the command line and terminal UI. Homebrew links it
-          for you; after a manual install:
+          for you; after a manual install, choose File → Install Command Line Tool, or:
           `sudo mkdir -p /usr/local/bin && sudo ln -sf /Applications/Dictator.app/Contents/MacOS/dictator /usr/local/bin/dictator`
           EOF
           prerelease=()

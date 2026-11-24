@@ -538,6 +538,66 @@ fn report(gui: &Gui, result: Result<()>) {
     }
 }
 
+/// Links `/usr/local/bin/dictator` to this binary, or removes that link,
+/// asking for the admin password. Returns the status line.
+#[cfg(target_os = "macos")]
+fn command_line_tool(install: bool) -> Result<String> {
+    use anyhow::{Context, anyhow, bail};
+    const LINK: &str = "/usr/local/bin/dictator";
+    // Canonical, so an app started through the link doesn't link to itself.
+    let exe = std::env::current_exe()
+        .and_then(std::fs::canonicalize)
+        .context("finding the dictator binary")?;
+    let is_link = std::fs::symlink_metadata(LINK).map(|m| m.is_symlink());
+    let ours = std::fs::canonicalize(LINK).is_ok_and(|target| target == exe);
+    let (command, done) = match (install, is_link) {
+        (_, Ok(false)) => return Ok(format!("{LINK} is not a link; left it alone")),
+        (true, _) if ours => return Ok(format!("{LINK} already links to {}", exe.display())),
+        (true, _) if exe.starts_with("/private/var/folders") => {
+            return Ok("Move Dictator.app to Applications first, then try again".into());
+        }
+        (true, _) => {
+            let path = exe
+                .to_str()
+                .ok_or_else(|| anyhow!("{} is not a UTF-8 path", exe.display()))?;
+            let quoted = format!("'{}'", path.replace('\'', r"'\''"));
+            (
+                format!(
+                    "mkdir -p /usr/local/bin && {{ [ -L {LINK} ] || [ ! -e {LINK} ]; }} && ln -sfh {quoted} {LINK}"
+                ),
+                format!("Linked {LINK} to {path}"),
+            )
+        }
+        (false, _) if ours => (
+            format!("[ -L {LINK} ] && rm {LINK}"),
+            format!("Removed {LINK}"),
+        ),
+        (false, Ok(true)) => return Ok(format!("{LINK} links elsewhere; left it alone")),
+        (false, Err(_)) => return Ok(format!("{LINK} is not installed")),
+    };
+    // The command goes in as an argument, so AppleScript doesn't parse it.
+    let out = std::process::Command::new("osascript")
+        .args([
+            "-e",
+            "on run argv",
+            "-e",
+            "do shell script item 1 of argv with administrator privileges",
+            "-e",
+            "end run",
+            &command,
+        ])
+        .output()
+        .context("running osascript")?;
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    if out.status.success() {
+        Ok(done)
+    } else if stderr.contains("(-128)") {
+        Ok("Cancelled; nothing changed".into())
+    } else {
+        bail!("{}", stderr.trim())
+    }
+}
+
 pub fn run(initial: Option<PathBuf>) -> Result<()> {
     let ui = MainWindow::new()?;
     let gui = Rc::new(Gui {
@@ -615,6 +675,12 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
             "Installed the CMake package in {}",
             dir.display()
         ))));
+    #[cfg(target_os = "macos")]
+    on!(on_install_command_line_tool, |g| command_line_tool(true)
+        .map(|done| g.status(done)));
+    #[cfg(target_os = "macos")]
+    on!(on_uninstall_command_line_tool, |g| command_line_tool(false)
+        .map(|done| g.status(done)));
     // Hiding the only window ends `run()`.
     on!(on_quit, |g| {
         if g.settle_unsaved() {

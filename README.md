@@ -110,8 +110,9 @@ xattr -dr com.apple.quarantine /Applications/Dictator.app
 ```
 
 The binary inside the app is also the command line and the terminal UI.
-Homebrew links it for you; after a manual install, link it into
-`/usr/local/bin`, which is on macOS's default `PATH`:
+Homebrew links it for you; after a manual install, choose File → Install
+Command Line Tool in the app, or link it into `/usr/local/bin`, which is on
+macOS's default `PATH`, by hand:
 
 ```sh
 sudo mkdir -p /usr/local/bin
