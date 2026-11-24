@@ -71,3 +71,24 @@ jobs:
             exit 1
           fi
           grep 'provided by "Dictator"' "$RUNNER_TEMP/uninstalled.log" || { cat "$RUNNER_TEMP/uninstalled.log"; exit 1; }
+
+  action:
+    name: Linux (GitHub Action)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The runner's preinstalled Rust builds it, as for users of the action.
+      - uses: ./
+      - name: Check
+        run: dictator check assets/example/example.od --strict
+      - name: Export twice, same bytes
+        run: |
+          for out in od od2; do
+            dictator export assets/example/example.od --c "$RUNNER_TEMP/$out/ObjDict.c" \
+              --eds "$RUNNER_TEMP/$out/example.eds" --md "$RUNNER_TEMP/$out/example.md"
+          done
+          diff -r "$RUNNER_TEMP/od" "$RUNNER_TEMP/od2"
+      - name: CMake test project via the action's cmake install
+        run: |
+          cmake -S tests/cmake -B "$RUNNER_TEMP/cmake"
+          cmake --build "$RUNNER_TEMP/cmake"

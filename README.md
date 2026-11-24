@@ -136,7 +136,7 @@ cargo install --path . --no-default-features --features tui
 ```
 
 With `--no-default-features` alone you get just the command line
-(`import` and `export`), which is what a CI job needs.
+(`check`, `import` and `export`), which is what a CI job needs.
 
 On Linux, the Slint window needs the usual desktop development packages
 (fontconfig, xkbcommon, and Wayland or X11). See
@@ -220,6 +220,7 @@ complete paths with `Tab` and expand `~`.
 
 ```
 dictator export PROJECT [--c FILE.c] [--od FILE.od] [--eds FILE.eds] [--md FILE.md] [--strict]
+dictator check PROJECT [--strict]
 dictator import FILE.xdd|FILE.od OUT.objdict.toml
 dictator cmake install | uninstall | dir
 dictator --help
@@ -229,8 +230,12 @@ dictator --version
 `export` writes every requested file in one run, and `--c` writes the
 matching `.h` next to the `.c`. Importing a `.od` can give warnings about
 what could not be carried over; with `--strict` they make `export` fail
-without writing anything, so a build stops on them. Neither command needs a
-display or a terminal. `--version` (also `-V` or `-v`) prints `dictator` and
+without writing anything, so a build stops on them. `check` loads the
+project as `export` does and writes nothing: it fails on values that don't
+fit their type, and with `--strict` on those warnings too. Problems specific
+to one output, such as a type CanFestival C has no equivalent for, show up
+only in `export`. None of these needs a display or a
+terminal. `--version` (also `-V` or `-v`) prints `dictator` and
 the version, for checking which binary is on `PATH`.
 `cmake` sets up `find_package(Dictator)`; see
 [Using with CMake](#using-with-cmake).
@@ -241,12 +246,17 @@ Keep only the `*.objdict.toml` in the firmware repository and let the
 pipeline produce the C library, the EDS and the docs from it. Every export
 of the same project gives the same bytes, so the result is reproducible.
 
-Build Dictator with `--no-default-features` for CI. That drops both front
-ends, so the runner needs no GUI or terminal libraries, only a Rust
-toolchain. There are no released binaries yet, so pin the commit you
-tested with `--rev`.
+`dictator check PROJECT --strict` gates a pipeline on a correct object
+dictionary without generating anything.
 
-**GitHub Actions**, `.github/workflows/object-dictionary.yml`:
+**GitHub Actions**: the action in this repository installs the command line
+(built with `--no-default-features`, so no GUI or terminal libraries),
+caches it, puts `dictator` on `PATH` and runs `dictator cmake install`, so a
+CMake build's `find_package(Dictator)` needs no hints (see
+[Using with CMake](#using-with-cmake)). It builds with the runner's Rust
+toolchain, which GitHub's Linux and macOS runners have. Pinned to a release
+tag it installs that version from crates.io; `version: X.Y.Z` picks another
+(0.2.0 or newer), and any other ref builds the action's own source.
 
 ```yaml
 name: object dictionary
@@ -256,48 +266,43 @@ jobs:
   generate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin/dictator
-          key: dictator-<commit>
-      - name: Install Dictator
-        run: |
-          command -v dictator || cargo install --locked --no-default-features \
-            --git https://github.com/golovinengineer/canopen-dictator --rev <commit>
-      - name: Generate
-        run: |
+      - uses: actions/checkout@v7
+      - uses: golovinengineer/canopen-dictator@v0.2.0
+      - run: dictator check device.objdict.toml --strict
+      - run: |
           dictator export device.objdict.toml \
             --c generated/ObjDict.c --eds generated/device.eds --md generated/device.md
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: object-dictionary
           path: generated/
 ```
 
-**GitLab CI**, `.gitlab-ci.yml`:
+**Other CI**: install the same build from crates.io with a Rust toolchain,
+cache it on the version, and for a CMake build run `dictator cmake install`
+after it. GitLab CI, `.gitlab-ci.yml`:
 
 ```yaml
 object-dictionary:
   image: rust:latest
   variables:
+    DICTATOR_VERSION: "0.2.0"
     CARGO_HOME: $CI_PROJECT_DIR/.cargo
   cache:
-    key: dictator-<commit>
+    key: dictator-$DICTATOR_VERSION
     paths: [.cargo/bin/]
   script:
     - export PATH="$CARGO_HOME/bin:$PATH"
-    - command -v dictator || cargo install --locked --no-default-features
-        --git https://github.com/golovinengineer/canopen-dictator --rev <commit>
+    - command -v dictator || cargo install canopen-dictator
+        --version $DICTATOR_VERSION --locked --no-default-features
+    - dictator check device.objdict.toml --strict
     - dictator export device.objdict.toml
         --c generated/ObjDict.c --eds generated/device.eds --md generated/device.md
   artifacts:
     paths: [generated/]
 ```
 
-Later jobs can pick up the generated files as artifacts. Running the export
-as a step of the firmware build itself works the same way; with CMake,
-[Using with CMake](#using-with-cmake) does that for you. Attach the EDS
+Later jobs can pick up the generated files as artifacts. Attach the EDS
 and the Markdown to a release so integrators get files that match the
 firmware.
 

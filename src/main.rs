@@ -34,6 +34,11 @@ Usage:
       EDS and Markdown docs. --strict fails without writing anything when
       importing a .od gives warnings.
 
+  dictator check PROJECT [--strict]
+      Load the project as export does and write nothing: fails on values
+      that don't fit their type, and with --strict on import warnings too.
+      Problems specific to one output show up only in export.
+
   dictator import FILE.xdd|FILE.od OUT.objdict.toml
       Convert a CANopenEditor XDD or a CanFestival .od into a project file.
 
@@ -49,14 +54,16 @@ Usage:
       Print the version.
 ";
 
-fn export(args: &[String]) -> Result<()> {
+/// `export`, or with `check`, the same checks without writing anything.
+fn export(args: &[String], check: bool) -> Result<()> {
+    let command = if check { "check" } else { "export" };
     let mut input: Option<PathBuf> = None;
     let mut outputs: Vec<(String, PathBuf)> = Vec::new();
     let mut strict = false;
     let mut it = args.iter();
     while let Some(arg) = it.next() {
         match arg.as_str() {
-            "--c" | "--od" | "--eds" | "--md" => {
+            "--c" | "--od" | "--eds" | "--md" if !check => {
                 let path = it
                     .next()
                     .ok_or_else(|| anyhow!("{arg} needs a file path"))?;
@@ -68,8 +75,8 @@ fn export(args: &[String]) -> Result<()> {
             other => bail!("unexpected argument {other}"),
         }
     }
-    let input = input.ok_or_else(|| anyhow!("export needs a project file"))?;
-    if outputs.is_empty() {
+    let input = input.ok_or_else(|| anyhow!("{command} needs a project file"))?;
+    if outputs.is_empty() && !check {
         bail!("export needs at least one of --c, --od, --eds, --md");
     }
     // Values that won't export fail here, once, rather than as a warning
@@ -201,7 +208,8 @@ fn edit(args: &[String]) -> Result<()> {
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let result = match args.first().map(String::as_str) {
-        Some("export") => export(&args[1..]),
+        Some("export") => export(&args[1..], false),
+        Some("check") => export(&args[1..], true),
         Some("import") => import(&args[1..]),
         Some("cmake") => cmake::command(&args[1..]),
         Some("-h" | "--help" | "help") => {
