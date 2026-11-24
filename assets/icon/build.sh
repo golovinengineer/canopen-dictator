@@ -10,6 +10,10 @@
 #   dictator-dark.svg         the same on a deep green backdrop, for dark contexts
 #   dictator-small*.svg       simplified for 16-32 px (no text lines, no badge wave)
 #   dictator-macos*.svg       the light icon on Apple's 1024/824 grid with shadow
+#
+# Dictator.icon (Icon Composer, one group per layer from the SVGs in its
+# Assets/) is the Liquid Glass app icon; scripts/bundle-macos.sh compiles it
+# with actool. Edit it in Icon Composer, not here.
 set -eu
 cd "$(dirname "$0")"
 font=../../ui/fonts/JetBrainsMonoNL-Regular.ttf
