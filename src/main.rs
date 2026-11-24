@@ -28,9 +28,10 @@ Usage:
       --gui, it opens a window. --tui forces the terminal UI. The
       DICTATOR_UI environment variable (gui or tui) sets the default.
 
-  dictator export PROJECT [--c FILE.c] [--od FILE.od] [--eds FILE.eds] [--md FILE.md]
+  dictator export PROJECT [--c FILE.c] [--od FILE.od] [--eds FILE.eds] [--md FILE.md] [--strict]
       Generate CanFestival C (+ .h next to it), a CanFestival .od project,
-      EDS and Markdown docs.
+      EDS and Markdown docs. --strict fails without writing anything when
+      importing a .od gives warnings.
 
   dictator import FILE.xdd|FILE.od OUT.objdict.toml
       Convert a CANopenEditor XDD or a CanFestival .od into a project file.
@@ -45,6 +46,7 @@ Usage:
 fn export(args: &[String]) -> Result<()> {
     let mut input: Option<PathBuf> = None;
     let mut outputs: Vec<(String, PathBuf)> = Vec::new();
+    let mut strict = false;
     let mut it = args.iter();
     while let Some(arg) = it.next() {
         match arg.as_str() {
@@ -54,6 +56,7 @@ fn export(args: &[String]) -> Result<()> {
                     .ok_or_else(|| anyhow!("{arg} needs a file path"))?;
                 outputs.push((arg.clone(), PathBuf::from(path)));
             }
+            "--strict" => strict = true,
             other if other.starts_with("--") => bail!("unknown option {other}"),
             other if input.is_none() => input = Some(PathBuf::from(other)),
             other => bail!("unexpected argument {other}"),
@@ -67,7 +70,11 @@ fn export(args: &[String]) -> Result<()> {
     // from the open followed by the same text as the error.
     let (od, warnings) = io::open(&input)?;
     io::check_values(&od)?;
+    let failed = strict && !warnings.is_empty();
     print_warnings(warnings);
+    if failed {
+        bail!("not exported: --strict and the import gave warnings");
+    }
     let project_name = input
         .file_name()
         .and_then(|n| n.to_str())

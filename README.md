@@ -219,16 +219,18 @@ complete paths with `Tab` and expand `~`.
 ## Command line
 
 ```
-dictator export PROJECT [--c FILE.c] [--od FILE.od] [--eds FILE.eds] [--md FILE.md]
+dictator export PROJECT [--c FILE.c] [--od FILE.od] [--eds FILE.eds] [--md FILE.md] [--strict]
 dictator import FILE.xdd|FILE.od OUT.objdict.toml
 dictator --help
 dictator --version
 ```
 
 `export` writes every requested file in one run, and `--c` writes the
-matching `.h` next to the `.c`. Neither command needs a display or a
-terminal. `--version` (also `-V` or `-v`) prints `dictator` and the version,
-for checking which binary is on `PATH`.
+matching `.h` next to the `.c`. Importing a `.od` can give warnings about
+what could not be carried over; with `--strict` they make `export` fail
+without writing anything, so a build stops on them. Neither command needs a
+display or a terminal. `--version` (also `-V` or `-v`) prints `dictator` and
+the version, for checking which binary is on `PATH`.
 
 ## Generating code in CI
 
