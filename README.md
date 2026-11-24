@@ -476,6 +476,12 @@ produced by CANopenEditor and CanFestival. That README explains how to
 regenerate them. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 records the design decisions and notes on each file format.
 
+Each change is a branch and a pull request into `main`, titled
+`area: summary` and labelled, so it shows up in the right section of the
+release notes. `main` takes merge commits only, so every commit is kept;
+each should build and pass on its own. A release is a `vX.Y.Z` tag on
+`main`.
+
 ## Licence
 
 Dictator is licensed under either of [Apache License 2.0](LICENSE-APACHE) or
