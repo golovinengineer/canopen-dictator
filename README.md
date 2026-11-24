@@ -437,7 +437,7 @@ lists every rule and the few deliberate differences from the Python tool.
 
 ## Status
 
-Dictator is at 0.1, and the main workflow works: import, edit, save and
+Dictator is at 0.2, and the main workflow works: import, edit, save and
 export in both front ends. The golden tests check each importer and exporter
 against files made by the original tools. Planned next:
 

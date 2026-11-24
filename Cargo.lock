@@ -706,7 +706,7 @@ dependencies = [
 
 [[package]]
 name = "canopen-dictator"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "canopen-dictator-canfestival",
@@ -720,7 +720,7 @@ dependencies = [
 
 [[package]]
 name = "canopen-dictator-canfestival"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "canopen-dictator-core",
@@ -729,7 +729,7 @@ dependencies = [
 
 [[package]]
 name = "canopen-dictator-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "roxmltree",

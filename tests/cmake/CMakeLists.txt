@@ -20,7 +20,7 @@ FetchContent_MakeAvailable(co_stack)
 add_library(canfestival INTERFACE)
 target_include_directories(canfestival INTERFACE "${co_stack_SOURCE_DIR}/include")
 
-find_package(Dictator 0.1 REQUIRED)
+find_package(Dictator 0.2 REQUIRED)
 dictator_add_object_dictionary(od
   PROJECT  "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/example/example.od"
   STACK    canfestival
