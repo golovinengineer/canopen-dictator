@@ -74,9 +74,36 @@ CANopenNode v4 `OD.c`/`OD.h`, XDD export and EDS import are planned; see
 
 ## Installing
 
-Dictator is not packaged as a macOS app yet. With a recent stable Rust
-toolchain (the crates use edition 2024), install it from crates.io; the
-package is `canopen-dictator`, the command it installs is `dictator`:
+### macOS app
+
+Download `Dictator-<version>-macos-universal.dmg` from
+[Releases](https://github.com/golovinengineer/canopen-dictator/releases),
+open it and drag `Dictator.app` onto the Applications folder next to it
+(a `.zip` with the same app is there too). It runs on Apple Silicon
+and Intel Macs with macOS 11 or later.
+
+The app is not signed with an Apple Developer ID yet, so macOS blocks the
+first start. Open System Settings → Privacy & Security and click **Open
+Anyway**, or clear the quarantine flag once in a terminal:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Dictator.app
+```
+
+The binary inside the app is also the command line and the terminal UI. To
+get `dictator` in your shell, link it into `/usr/local/bin`, which is on
+macOS's default `PATH`:
+
+```sh
+sudo mkdir -p /usr/local/bin
+sudo ln -sf /Applications/Dictator.app/Contents/MacOS/dictator /usr/local/bin/dictator
+```
+
+### With Cargo
+
+With a recent stable Rust toolchain (the crates use edition 2024), install
+it from crates.io; the package is `canopen-dictator`, the command it
+installs is `dictator`:
 
 ```sh
 cargo install canopen-dictator --version 0.1.0-alpha.1
@@ -111,6 +138,10 @@ Open the example project that comes with the repository:
 ```sh
 dictator assets/example/example.objdict.toml
 ```
+
+The example uses every data type the formats know, including a
+UNICODE_STRING object (0x200D) that CanFestival has no C type for. To try
+the C export on it, disable that object first.
 
 Bring in an existing CANopenEditor or CanFestival project:
 
@@ -147,9 +178,9 @@ If you prefer the window even when you start Dictator from a shell, put
 Both front ends edit the same way. The window shows invalid values with a
 red outline. The terminal UI won't accept them and tells you why.
 
-> **macOS:** double-clicking the bare `dictator` binary in Finder opens it in
-> your terminal app, so you get the terminal UI. Use `--gui` until a `.app`
-> bundle is available.
+> **macOS:** start `Dictator.app` for the window. Double-clicking the bare
+> `dictator` binary in Finder opens it in your terminal app, so you get the
+> terminal UI.
 
 ### Terminal UI keys
 

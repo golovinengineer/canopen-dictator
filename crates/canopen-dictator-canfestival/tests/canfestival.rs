@@ -13,3 +13,23 @@ fn c_and_header_match_canfestival_output() {
     common::assert_same_tokens(&h, &common::read_asset("ObjDict.h"), "ObjDict.h");
     common::assert_same_tokens(&c, &common::read_asset("ObjDict.c"), "ObjDict.c");
 }
+
+/// The checked-in example keeps a UNICODE_STRING object (0x200D), which
+/// CanFestival has no C type for: the export names it and says how to get
+/// past it. Disabled, the rest exports (DOMAIN 0x200E without a default is
+/// fine for the generator).
+#[test]
+fn unicode_string_object_is_named_and_can_be_disabled() {
+    let mut od =
+        canopen_dictator_core::project::load(&common::asset("example.objdict.toml")).unwrap();
+    let err = gen_c::generate(&od, "ObjDict.h").unwrap_err().to_string();
+    assert!(
+        err.contains("0x200D Demo unicode string (UNICODE_STRING)"),
+        "{err}"
+    );
+    assert!(err.contains("disabled = true"), "{err}");
+    assert!(!err.contains("!!!"), "{err}");
+
+    od.objects.get_mut(&0x200D).unwrap().disabled = true;
+    gen_c::generate(&od, "ObjDict.h").unwrap();
+}
