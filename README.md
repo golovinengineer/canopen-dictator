@@ -476,12 +476,11 @@ produced by CANopenEditor and CanFestival. That README explains how to
 regenerate them. [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 records the design decisions and notes on each file format.
 
-Each change is a branch and a pull request into `dev`, titled
+Each change is a branch and a pull request into `main`, titled
 `area: summary` and labelled, so it shows up in the right section of the
-release notes. A release is a pull request from `dev` into `main` with the
-`release` label, then a `vX.Y.Z` tag on `main`. Both branches take merge
-commits only, so every commit is kept; each should build and pass on its
-own.
+release notes. `main` takes merge commits only, so every commit is kept;
+each should build and pass on its own. A release is a `vX.Y.Z` tag on
+`main`.
 
 ## Licence
 
