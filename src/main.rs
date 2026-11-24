@@ -34,6 +34,12 @@ Usage:
 
   dictator import FILE.xdd|FILE.od OUT.objdict.toml
       Convert a CANopenEditor XDD or a CanFestival .od into a project file.
+
+  dictator -h | --help
+      Print this help.
+
+  dictator -V | -v | --version
+      Print the version.
 ";
 
 fn export(args: &[String]) -> Result<()> {
@@ -186,6 +192,10 @@ fn main() -> ExitCode {
         Some("import") => import(&args[1..]),
         Some("-h" | "--help" | "help") => {
             print!("{USAGE}");
+            Ok(())
+        }
+        Some("-V" | "-v" | "--version") => {
+            println!("dictator {}", env!("CARGO_PKG_VERSION"));
             Ok(())
         }
         _ => edit(&args),

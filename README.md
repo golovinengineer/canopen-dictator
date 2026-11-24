@@ -221,11 +221,14 @@ complete paths with `Tab` and expand `~`.
 ```
 dictator export PROJECT [--c FILE.c] [--od FILE.od] [--eds FILE.eds] [--md FILE.md]
 dictator import FILE.xdd|FILE.od OUT.objdict.toml
+dictator --help
+dictator --version
 ```
 
 `export` writes every requested file in one run, and `--c` writes the
 matching `.h` next to the `.c`. Neither command needs a display or a
-terminal.
+terminal. `--version` (also `-V` or `-v`) prints `dictator` and the version,
+for checking which binary is on `PATH`.
 
 ## Generating code in CI
 
