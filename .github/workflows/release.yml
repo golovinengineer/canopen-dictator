@@ -18,11 +18,19 @@ env:
 jobs:
   macos:
     name: macOS app
-    runs-on: macos-latest
+    # assets/icon/Dictator.icon is saved by Icon Composer from Xcode 27;
+    # Xcode 26's actool can't open it, and the macos-26 image has only
+    # Xcode 26. The xcode-27 image (macOS 27) has Xcode 27.
+    runs-on: xcode-27
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
+      - name: Select the newest Xcode 27
+        run: |
+          xcode=$(ls -d /Applications/Xcode_27*.app | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin, x86_64-apple-darwin
