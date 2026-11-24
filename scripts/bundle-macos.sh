@@ -38,7 +38,36 @@ done
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 lipo -create -output "$APP/Contents/MacOS/dictator" "${binaries[@]}"
-cp assets/icon/dictator.icns "$APP/Contents/Resources/dictator.icns"
+
+# The Liquid Glass icon (macOS 26 and later) comes from the Icon Composer file
+# assets/icon/Dictator.icon; actool compiles it into Assets.car and also
+# writes Dictator.icns for older macOS. actool ships with Xcode, not with the
+# Command Line Tools: without it, a local build falls back to the flat icon,
+# a CI build fails rather than ship the wrong one.
+icon_name_key=""
+if xcrun --find actool >/dev/null 2>&1; then
+    xcrun actool assets/icon/Dictator.icon \
+        --compile "$APP/Contents/Resources" \
+        --output-partial-info-plist "$OUT/icon-info.plist" \
+        --app-icon Dictator --include-all-app-icons \
+        --enable-on-demand-resources NO --development-region en \
+        --target-device mac --platform macosx \
+        --minimum-deployment-target "$MIN_MACOS" \
+        --errors --warnings --output-format human-readable-text
+    rm -f "$OUT/icon-info.plist"
+    [[ -f "$APP/Contents/Resources/Assets.car" && -f "$APP/Contents/Resources/Dictator.icns" ]] ||
+        { echo "actool did not write Assets.car and Dictator.icns" >&2; exit 1; }
+    icon_file=Dictator
+    icon_name_key="<key>CFBundleIconName</key>
+    <string>Dictator</string>"
+elif [[ -n ${CI:-} ]]; then
+    echo "actool not found (needs Xcode); refusing to build without the Liquid Glass icon" >&2
+    exit 1
+else
+    echo "warning: actool not found (needs Xcode); using the flat icon" >&2
+    cp assets/icon/dictator.icns "$APP/Contents/Resources/dictator.icns"
+    icon_file=dictator
+fi
 
 cat > "$APP/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -54,7 +83,8 @@ cat > "$APP/Contents/Info.plist" <<EOF
     <key>CFBundleIdentifier</key>
     <string>$BUNDLE_ID</string>
     <key>CFBundleIconFile</key>
-    <string>dictator</string>
+    <string>$icon_file</string>
+    $icon_name_key
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleInfoDictionaryVersion</key>

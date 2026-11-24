@@ -76,23 +76,34 @@ CANopenNode v4 `OD.c`/`OD.h`, XDD export and EDS import are planned; see
 
 ### macOS app
 
-Download `Dictator-<version>-macos-universal.dmg` from
+With [Homebrew](https://brew.sh):
+
+```sh
+brew install --cask golovinengineer/tap/dictator
+```
+
+That installs `Dictator.app` into Applications and links its binary as
+`dictator`, so the command line and the terminal UI work from a shell too.
+`brew upgrade` picks up new releases.
+
+Or by hand: download `Dictator-<version>-macos-universal.dmg` from
 [Releases](https://github.com/golovinengineer/canopen-dictator/releases),
 open it and drag `Dictator.app` onto the Applications folder next to it
 (a `.zip` with the same app is there too). It runs on Apple Silicon
 and Intel Macs with macOS 11 or later.
 
 The app is not signed with an Apple Developer ID yet, so macOS blocks the
-first start. Open System Settings → Privacy & Security and click **Open
+first start, whichever way you installed it (Homebrew quarantines its
+downloads too). Open System Settings → Privacy & Security and click **Open
 Anyway**, or clear the quarantine flag once in a terminal:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/Dictator.app
 ```
 
-The binary inside the app is also the command line and the terminal UI. To
-get `dictator` in your shell, link it into `/usr/local/bin`, which is on
-macOS's default `PATH`:
+The binary inside the app is also the command line and the terminal UI.
+Homebrew links it for you; after a manual install, link it into
+`/usr/local/bin`, which is on macOS's default `PATH`:
 
 ```sh
 sudo mkdir -p /usr/local/bin
