@@ -165,3 +165,30 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
         run: cargo publish --workspace --locked
+
+  # Run golovinengineer/canopen-dictator-example against the version just
+  # published. Needs the secret EXAMPLE_DISPATCH_TOKEN (fine-grained token,
+  # contents read/write on that repository only); without it the job only
+  # leaves a notice.
+  example:
+    name: Example repository
+    needs: crates-io
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch dictator-release
+        env:
+          GH_TOKEN: ${{ secrets.EXAMPLE_DISPATCH_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::notice::EXAMPLE_DISPATCH_TOKEN is not set; the example repository was not run"
+            exit 0
+          fi
+          # cargo publish returns before the sparse index always shows it.
+          for _ in $(seq 30); do
+            curl -fsS https://index.crates.io/ca/no/canopen-dictator | grep -q "\"vers\":\"${TAG#v}\"" && break
+            sleep 10
+          done
+          gh api repos/golovinengineer/canopen-dictator-example/dispatches \
+            -f event_type=dictator-release -f "client_payload[version]=${TAG#v}"
