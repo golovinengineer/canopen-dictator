@@ -1,0 +1,54 @@
+name: Dictator
+description: Install the dictator command line (no GUI or terminal UI) and its CMake package
+inputs:
+  version:
+    description: >-
+      canopen-dictator version to install from crates.io (X.Y.Z, 0.2.0 or
+      newer). Default: the action's own tag vX.Y.Z; any other ref builds the
+      action's own source.
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - id: resolve
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        ACTION_REF: ${{ github.action_ref }}
+      run: |
+        cd "$GITHUB_ACTION_PATH"
+        # Not a pattern match: nested in another composite action, action_ref is the outer one's.
+        if [[ -z "$VERSION" && "$ACTION_REF" == "v$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml)" ]]; then
+          VERSION=${ACTION_REF#v}
+        fi
+        if [[ -n "$VERSION" ]]; then
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::version must be X.Y.Z, not $VERSION"
+            exit 1
+          fi
+          key=$VERSION
+        else
+          key=src-$(find Cargo.toml Cargo.lock build.rs src cmake crates -type f -exec shasum -a 256 {} + |
+            LC_ALL=C sort | shasum -a 256 | cut -c 1-16)
+        fi
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "key=$key" >> "$GITHUB_OUTPUT"
+        echo "$RUNNER_TEMP/dictator/bin" >> "$GITHUB_PATH"
+    - id: cache
+      uses: actions/cache@v6
+      with:
+        path: ${{ runner.temp }}/dictator
+        key: dictator-${{ runner.os }}-${{ runner.arch }}-${{ steps.resolve.outputs.key }}
+    - if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        VERSION: ${{ steps.resolve.outputs.version }}
+      run: |
+        if [[ -n "$VERSION" ]]; then
+          cargo install canopen-dictator --version "$VERSION" --locked --no-default-features --root "$RUNNER_TEMP/dictator"
+        else
+          cargo install --path "$GITHUB_ACTION_PATH" --locked --no-default-features --root "$RUNNER_TEMP/dictator"
+        fi
+    - shell: bash
+      run: dictator cmake install

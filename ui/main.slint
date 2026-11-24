@@ -94,6 +94,9 @@ export global App {
     callback export-eds();
     callback export-docs();
     callback export-od();
+    callback install-cmake-package();
+    callback install-command-line-tool();
+    callback uninstall-command-line-tool();
     callback quit();
 
     callback filter-changed(string);
@@ -986,6 +989,29 @@ export component MainWindow inherits Window {
                     activated => {
                         App.export-docs();
                     }
+                }
+            }
+
+            MenuSeparator { }
+
+            MenuItem {
+                title: "Install CMake Package";
+                activated => {
+                    App.install-cmake-package();
+                }
+            }
+
+            if Platform.os == OperatingSystemType.macos: MenuItem {
+                title: "Install Command Line Tool";
+                activated => {
+                    App.install-command-line-tool();
+                }
+            }
+
+            if Platform.os == OperatingSystemType.macos: MenuItem {
+                title: "Uninstall Command Line Tool";
+                activated => {
+                    App.uninstall-command-line-tool();
                 }
             }
 

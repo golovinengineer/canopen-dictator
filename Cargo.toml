@@ -2,7 +2,7 @@
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 repository = "https://github.com/golovinengineer/canopen-dictator"
 keywords = ["canopen", "can", "object-dictionary", "canfestival", "eds"]
@@ -11,8 +11,8 @@ categories = ["embedded", "development-tools", "command-line-utilities", "gui"]
 [workspace.dependencies]
 anyhow = "1.0.104"
 roxmltree = "0.21.2"
-canopen-dictator-core = { path = "crates/canopen-dictator-core", version = "=0.1.0" }
-canopen-dictator-canfestival = { path = "crates/canopen-dictator-canfestival", version = "=0.1.0" }
+canopen-dictator-core = { path = "crates/canopen-dictator-core", version = "=0.2.0" }
+canopen-dictator-canfestival = { path = "crates/canopen-dictator-canfestival", version = "=0.2.0" }
 
 [package]
 name = "canopen-dictator"
@@ -28,6 +28,7 @@ include = [
     "/src/",
     "/ui/",
     "/build.rs",
+    "/cmake/",
     "/slint-project.json",
     "/assets/icon/png/dictator-256.png",
     "/assets/icon/png/dictator-dark-256.png",

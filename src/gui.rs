@@ -529,12 +529,205 @@ impl Gui {
         self.status(format!("Exported {what} to {}", path.display()));
         Ok(())
     }
+
+    /// Started from outside an Applications folder (the disk image,
+    /// Downloads, App Translocation), offer to copy the app to
+    /// /Applications, relaunch it from there with `project` and quit. The
+    /// original is left where it is.
+    #[cfg(target_os = "macos")]
+    fn offer_move_to_applications(&self, project: Option<&Path>) -> Result<()> {
+        use anyhow::{Context, bail};
+        const TARGET: &str = "/Applications/Dictator.app";
+        let exe = std::env::current_exe()?.canonicalize()?;
+        let Some(bundle) = exe
+            .ancestors()
+            .find(|p| p.extension().is_some_and(|e| e == "app"))
+        else {
+            return Ok(());
+        };
+        if bundle.starts_with("/Applications")
+            || std::env::var_os("HOME")
+                .is_some_and(|h| bundle.starts_with(Path::new(&h).join("Applications")))
+            || self
+                .settings
+                .borrow()
+                .flag("macos", "offer-move-to-applications")
+                == Some(false)
+        {
+            return Ok(());
+        }
+        const MOVE: &str = "Move";
+        const DONT_ASK: &str = "Don't Ask Again";
+        let answer = rfd::MessageDialog::new()
+            .set_title("Move to Applications")
+            .set_description(
+                "Move Dictator to the Applications folder? \
+                 Started from here, the command line tool and the CMake package \
+                 would point at a place that may go away.",
+            )
+            .set_buttons(rfd::MessageButtons::YesNoCancelCustom(
+                MOVE.into(),
+                "Not Now".into(),
+                DONT_ASK.into(),
+            ))
+            .show();
+        match answer {
+            rfd::MessageDialogResult::Custom(b) if b == MOVE => {}
+            rfd::MessageDialogResult::Custom(b) if b == DONT_ASK => {
+                // Saved with the window layout on quit.
+                self.settings
+                    .borrow_mut()
+                    .set_flag("macos", "offer-move-to-applications", false);
+                return Ok(());
+            }
+            _ => return Ok(()),
+        }
+        const BY_HAND: &str = "drag Dictator.app there in the Finder";
+        // Copied next to the target and swapped in, so a failed copy leaves
+        // an installed app as it was.
+        const NEW: &str = "/Applications/.Dictator.app.new";
+        const OLD: &str = "/Applications/.Dictator.app.old";
+        let _ = std::fs::remove_dir_all(NEW);
+        let _ = std::fs::remove_dir_all(OLD);
+        // This very code was already allowed to run; with the quarantine the
+        // copy would be translocated again. ditto clones the attributes even
+        // with --noqtn, so xattr removes it.
+        let out = std::process::Command::new("sh")
+            .args([
+                "-c",
+                r#"ditto "$1" "$2" && xattr -drs com.apple.quarantine "$2""#,
+                "sh",
+            ])
+            .args([bundle, Path::new(NEW)])
+            .output()
+            .context("running ditto")?;
+        if !out.status.success() {
+            let _ = std::fs::remove_dir_all(NEW);
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            bail!(
+                "Couldn't copy Dictator to /Applications ({}); {BY_HAND}",
+                stderr.trim()
+            );
+        }
+        match std::fs::rename(TARGET, OLD) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => {
+                let _ = std::fs::remove_dir_all(NEW);
+                bail!("Couldn't replace {TARGET} ({e}); {BY_HAND}")
+            }
+            _ => {}
+        }
+        if let Err(e) = std::fs::rename(NEW, TARGET) {
+            let _ = std::fs::rename(OLD, TARGET);
+            let _ = std::fs::remove_dir_all(NEW);
+            bail!("Couldn't replace {TARGET} ({e}); {BY_HAND}");
+        }
+        let _ = std::fs::remove_dir_all(OLD);
+        let mut open = std::process::Command::new("open");
+        open.args(["-n", TARGET]);
+        if let Some(project) = project {
+            open.arg("--args").arg(std::path::absolute(project)?);
+        }
+        let status = open.status().context("running open")?;
+        if !status.success() {
+            bail!("Couldn't start {TARGET}");
+        }
+        // Nothing was edited yet and the copy reopens the project, so no
+        // unsaved-changes prompt (an import counts as unsaved).
+        self.save_layout();
+        self.ui.hide()?;
+        Ok(())
+    }
 }
 
 /// Run a handler and show its error in the status bar.
 fn report(gui: &Gui, result: Result<()>) {
     if let Err(e) = result {
         gui.error(e);
+    }
+}
+
+/// Links `/usr/local/bin/dictator` to this binary, or removes that link,
+/// asking for the admin password only when the user can't change it.
+/// Returns the status line.
+#[cfg(target_os = "macos")]
+fn command_line_tool(install: bool) -> Result<String> {
+    use anyhow::{Context, anyhow, bail};
+    const LINK: &str = "/usr/local/bin/dictator";
+    // Canonical, so an app started through the link doesn't link to itself.
+    let exe = std::env::current_exe()
+        .and_then(std::fs::canonicalize)
+        .context("finding the dictator binary")?;
+    let is_link = std::fs::symlink_metadata(LINK).map(|m| m.is_symlink());
+    let ours = std::fs::canonicalize(LINK).is_ok_and(|target| target == exe);
+    let (command, prompt, done) = match (install, &is_link) {
+        (_, Ok(false)) => return Ok(format!("{LINK} is not a link; left it alone")),
+        (true, _) if ours => return Ok(format!("{LINK} already links to {}", exe.display())),
+        (true, _) if exe.starts_with("/private/var/folders") => {
+            return Ok("Move Dictator.app to Applications first, then try again".into());
+        }
+        (true, _) => {
+            let path = exe
+                .to_str()
+                .ok_or_else(|| anyhow!("{} is not a UTF-8 path", exe.display()))?;
+            let quoted = format!("'{}'", path.replace('\'', r"'\''"));
+            (
+                format!(
+                    "mkdir -p /usr/local/bin && {{ [ -L {LINK} ] || [ ! -e {LINK} ]; }} && ln -sfh {quoted} {LINK}"
+                ),
+                format!(
+                    "Dictator wants to link {LINK} to itself so you can run dictator in Terminal."
+                ),
+                format!("Linked {LINK} to {path}"),
+            )
+        }
+        (false, _) if ours => (
+            format!("[ -L {LINK} ] && rm {LINK}"),
+            format!("Dictator wants to remove the link {LINK}."),
+            format!("Removed {LINK}"),
+        ),
+        (false, Ok(true)) => return Ok(format!("{LINK} links elsewhere; left it alone")),
+        (false, Err(_)) => return Ok(format!("{LINK} is not installed")),
+    };
+    // Without the admin prompt when the user may change /usr/local/bin.
+    // Only a link is replaced or removed: one made since the check above
+    // makes the new link fail.
+    let direct = if install {
+        std::fs::create_dir_all("/usr/local/bin")
+            .and_then(|()| match is_link {
+                Ok(true) => std::fs::remove_file(LINK),
+                _ => Ok(()),
+            })
+            .and_then(|()| std::os::unix::fs::symlink(&exe, LINK))
+    } else {
+        std::fs::remove_file(LINK)
+    };
+    match direct {
+        Ok(()) => return Ok(done),
+        Err(e) if e.kind() == std::io::ErrorKind::PermissionDenied => {}
+        Err(e) => return Err(e).with_context(|| format!("changing {LINK}")),
+    }
+    // The command and the prompt go in as arguments, so AppleScript doesn't
+    // parse them.
+    let out = std::process::Command::new("osascript")
+        .args([
+            "-e",
+            "on run argv",
+            "-e",
+            "do shell script item 1 of argv with prompt item 2 of argv with administrator privileges",
+            "-e",
+            "end run",
+            &command,
+            &prompt,
+        ])
+        .output()
+        .context("running osascript")?;
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    if out.status.success() {
+        Ok(done)
+    } else if stderr.contains("(-128)") {
+        Ok("Cancelled; nothing changed".into())
+    } else {
+        bail!("{}", stderr.trim())
     }
 }
 
@@ -559,8 +752,8 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
 
     gui.load(ObjectDictionary::new_default(), None, false);
     gui.status("New project");
-    if let Some(path) = initial {
-        report(&gui, gui.open_path(&path));
+    if let Some(path) = &initial {
+        report(&gui, gui.open_path(path));
     }
 
     // Each handler holds a weak reference so the window can be dropped.
@@ -609,6 +802,18 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
             io::export_markdown(od, path, &project)
         })
     });
+    on!(on_install_cmake_package, |g| crate::cmake::install()
+        .and_then(|_| crate::cmake::dir())
+        .map(|dir| g.status(format!(
+            "Installed the CMake package in {}",
+            dir.display()
+        ))));
+    #[cfg(target_os = "macos")]
+    on!(on_install_command_line_tool, |g| command_line_tool(true)
+        .map(|done| g.status(done)));
+    #[cfg(target_os = "macos")]
+    on!(on_uninstall_command_line_tool, |g| command_line_tool(false)
+        .map(|done| g.status(done)));
     // Hiding the only window ends `run()`.
     on!(on_quit, |g| {
         if g.settle_unsaved() {
@@ -688,6 +893,17 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
             }
             None => slint::CloseRequestResponse::HideWindow,
         });
+
+    // Asked once the window is up and before anything is edited.
+    #[cfg(target_os = "macos")]
+    {
+        let weak = Rc::downgrade(&gui);
+        slint::Timer::single_shot(std::time::Duration::ZERO, move || {
+            if let Some(g) = weak.upgrade() {
+                report(&g, g.offer_move_to_applications(initial.as_deref()));
+            }
+        });
+    }
 
     gui.ui.run()?;
     Ok(())

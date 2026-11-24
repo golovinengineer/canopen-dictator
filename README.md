@@ -48,9 +48,17 @@ Dictator aims to be one editor for all of them:
   CanFestival `.od` today. EDS import is next. From one project, generate
   EDS for integrators, Markdown docs, and the C object dictionary for your
   stack.
-- **C library for your stack.** CanFestival C is done and token-identical to
-  CanFestival's own `gen_cfile`, so firmware symbol names don't change when
-  you switch. CANopenNode v4 `OD.c`/`OD.h` is next.
+- **C library for your stack.** CanFestival C is done. Upstream CanFestival
+  is no longer developed, so Dictator targets
+  [co_stack](https://github.com/RoboticsHardwareSolutions/co_stack), a
+  maintained CanFestival fork, and its output is token-identical to that
+  fork's `gen_cfile`, so firmware symbol names don't change when you switch.
+  CANopenNode v4 `OD.c`/`OD.h` is next.
+- **Not tied to one stack.** The same project generates code for each
+  supported stack, so a team moving a device from one stack to another can
+  build both from one dictionary during the move, instead of maintaining it
+  twice. CanFestival and CANopenNode come first; other stacks can follow as
+  they appear.
 - **A project file made for git.** One `*.objdict.toml` per device, written
   in a stable order with one line per subindex and no timestamps. A change
   shows up in review as exactly the lines it touched.
@@ -65,7 +73,7 @@ Dictator aims to be one editor for all of them:
 | `*.objdict.toml` (Dictator project) | ✓ | ✓ | the native format |
 | CANopenEditor XDD (4.x) | ✓ | | |
 | CanFestival `.od` | ✓ | ✓ | opens in `objdictedit` |
-| CanFestival C (`.c` + `.h`) | | ✓ | token-identical to `gen_cfile` |
+| CanFestival C (`.c` + `.h`) | | ✓ | for co_stack; token-identical to `gen_cfile` |
 | EDS | | ✓ | CANopenEditor's layout |
 | Markdown documentation | | ✓ | CANopenEditor's layout |
 
@@ -102,8 +110,9 @@ xattr -dr com.apple.quarantine /Applications/Dictator.app
 ```
 
 The binary inside the app is also the command line and the terminal UI.
-Homebrew links it for you; after a manual install, link it into
-`/usr/local/bin`, which is on macOS's default `PATH`:
+Homebrew links it for you; after a manual install, choose File → Install
+Command Line Tool in the app, or link it into `/usr/local/bin`, which is on
+macOS's default `PATH`, by hand:
 
 ```sh
 sudo mkdir -p /usr/local/bin
@@ -136,7 +145,7 @@ cargo install --path . --no-default-features --features tui
 ```
 
 With `--no-default-features` alone you get just the command line
-(`import` and `export`), which is what a CI job needs.
+(`check`, `import` and `export`), which is what a CI job needs.
 
 On Linux, the Slint window needs the usual desktop development packages
 (fontconfig, xkbcommon, and Wayland or X11). See
@@ -219,26 +228,47 @@ complete paths with `Tab` and expand `~`.
 ## Command line
 
 ```
-dictator export PROJECT [--c FILE.c] [--od FILE.od] [--eds FILE.eds] [--md FILE.md]
+dictator export PROJECT [--c FILE.c] [--od FILE.od] [--eds FILE.eds] [--md FILE.md] [--strict]
+dictator check PROJECT [--strict]
 dictator import FILE.xdd|FILE.od OUT.objdict.toml
+dictator cmake install | uninstall | dir
+dictator --help
+dictator --version
 ```
 
 `export` writes every requested file in one run, and `--c` writes the
-matching `.h` next to the `.c`. Neither command needs a display or a
-terminal.
+matching `.h` next to the `.c`. Importing a `.od` can give warnings about
+what could not be carried over; with `--strict` they make `export` fail
+without writing anything, so a build stops on them. `check` loads the
+project as `export` does and writes nothing: it fails on values that don't
+fit their type, and with `--strict` on those warnings too. Problems specific
+to one output, such as a type CanFestival C has no equivalent for, show up
+only in `export`. None of these needs a display or a
+terminal. `--version` (also `-V` or `-v`) prints `dictator` and
+the version, for checking which binary is on `PATH`.
+`cmake` sets up `find_package(Dictator)`; see
+[Using with CMake](#using-with-cmake).
 
 ## Generating code in CI
 
 Keep only the `*.objdict.toml` in the firmware repository and let the
 pipeline produce the C library, the EDS and the docs from it. Every export
 of the same project gives the same bytes, so the result is reproducible.
+[canopen-dictator-example](https://github.com/golovinengineer/canopen-dictator-example)
+is a complete setup to copy: a CMake firmware project whose GitHub Actions
+workflow checks the project, builds it and publishes the EDS and docs.
 
-Build Dictator with `--no-default-features` for CI. That drops both front
-ends, so the runner needs no GUI or terminal libraries, only a Rust
-toolchain. There are no released binaries yet, so pin the commit you
-tested with `--rev`.
+`dictator check PROJECT --strict` gates a pipeline on a correct object
+dictionary without generating anything.
 
-**GitHub Actions**, `.github/workflows/object-dictionary.yml`:
+**GitHub Actions**: the action in this repository installs the command line
+(built with `--no-default-features`, so no GUI or terminal libraries),
+caches it, puts `dictator` on `PATH` and runs `dictator cmake install`, so a
+CMake build's `find_package(Dictator)` needs no hints (see
+[Using with CMake](#using-with-cmake)). It builds with the runner's Rust
+toolchain, which GitHub's Linux and macOS runners have. Pinned to a release
+tag it installs that version from crates.io; `version: X.Y.Z` picks another
+(0.2.0 or newer), and any other ref builds the action's own source.
 
 ```yaml
 name: object dictionary
@@ -248,47 +278,43 @@ jobs:
   generate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cargo/bin/dictator
-          key: dictator-<commit>
-      - name: Install Dictator
-        run: |
-          command -v dictator || cargo install --locked --no-default-features \
-            --git https://github.com/golovinengineer/canopen-dictator --rev <commit>
-      - name: Generate
-        run: |
+      - uses: actions/checkout@v7
+      - uses: golovinengineer/canopen-dictator@v0.2.0
+      - run: dictator check device.objdict.toml --strict
+      - run: |
           dictator export device.objdict.toml \
             --c generated/ObjDict.c --eds generated/device.eds --md generated/device.md
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: object-dictionary
           path: generated/
 ```
 
-**GitLab CI**, `.gitlab-ci.yml`:
+**Other CI**: install the same build from crates.io with a Rust toolchain,
+cache it on the version, and for a CMake build run `dictator cmake install`
+after it. GitLab CI, `.gitlab-ci.yml`:
 
 ```yaml
 object-dictionary:
   image: rust:latest
   variables:
+    DICTATOR_VERSION: "0.2.0"
     CARGO_HOME: $CI_PROJECT_DIR/.cargo
   cache:
-    key: dictator-<commit>
+    key: dictator-$DICTATOR_VERSION
     paths: [.cargo/bin/]
   script:
     - export PATH="$CARGO_HOME/bin:$PATH"
-    - command -v dictator || cargo install --locked --no-default-features
-        --git https://github.com/golovinengineer/canopen-dictator --rev <commit>
+    - command -v dictator || cargo install canopen-dictator
+        --version $DICTATOR_VERSION --locked --no-default-features
+    - dictator check device.objdict.toml --strict
     - dictator export device.objdict.toml
         --c generated/ObjDict.c --eds generated/device.eds --md generated/device.md
   artifacts:
     paths: [generated/]
 ```
 
-Later jobs can pick up the generated files as artifacts. Running the export
-as a step of the firmware build itself works the same way. Attach the EDS
+Later jobs can pick up the generated files as artifacts. Attach the EDS
 and the Markdown to a release so integrators get files that match the
 firmware.
 
@@ -300,6 +326,53 @@ project but forgets to regenerate:
 dictator export device.objdict.toml --c firmware/ObjDict.c
 git diff --exit-code firmware/
 ```
+
+## Using with CMake
+
+`cmake/Dictator.cmake` (CMake 3.20 or newer) generates the object
+dictionary as part of the firmware build, so only the project file is
+committed:
+
+```cmake
+find_package(Dictator 0.2 REQUIRED)  # or include(path/to/Dictator.cmake)
+dictator_add_object_dictionary(od
+    PROJECT  ${CMAKE_CURRENT_SOURCE_DIR}/device.objdict.toml  # or .xdd / .od
+    STACK    canfestival
+    NAME     ObjDict           # ObjDict.c / ObjDict.h
+    LINK     canfestival       # your target that provides the co_stack headers
+    EDS      device.eds        # optional, built by `od_docs`
+    MARKDOWN device.md)        # optional, built by `od_docs`
+target_link_libraries(firmware PRIVATE od)
+```
+
+`od` is a static library built from `<build>/od/ObjDict.c`; linking it makes
+`#include "ObjDict.h"` work and brings the `LINK` targets along. The code is
+regenerated only when the project file or the `dictator` binary changes,
+always with `--strict`. `EDS` and `MARKDOWN` paths are relative to the current
+build directory; `cmake --build build --target od_docs` writes them.
+
+The module runs `DICTATOR_EXECUTABLE` if set, else `dictator` from `PATH`.
+A version given to `find_package` is checked against `dictator --version`.
+There are three ways to make the module available:
+
+- **`dictator cmake install`**, once per user, however Dictator was
+  installed. It writes the package to `~/Library/Application
+  Support/dictator/cmake` on macOS (`$XDG_DATA_HOME/dictator/cmake`, by
+  default `~/.local/share/dictator/cmake`, elsewhere) and registers it in
+  CMake's user package registry (`~/.cmake/packages/Dictator`), so a plain
+  `find_package(Dictator)` works in any project, without `-D` flags or sudo.
+  The installed package runs the binary that installed it, wherever it is
+  and whatever is on `PATH`, unless `DICTATOR_EXECUTABLE` is set; run it
+  again after moving the binary. A newer binary's `cmake install` replaces
+  the files. `dictator cmake uninstall` removes them and the registry
+  entry; `dictator cmake dir` prints the directory, for `Dictator_DIR`.
+- **`-DDictator_DIR=<checkout>/cmake`**, pointing at this repository's
+  `cmake/` directory.
+- **Vendoring or `FetchContent`**: copy `cmake/Dictator.cmake` into your
+  project, or fetch this repository, and `include()` it.
+
+Dictator runs on the build host, so cross-compiling the firmware makes no
+difference. [`tests/cmake/`](tests/cmake/) is a working example.
 
 ## The project file
 
@@ -367,7 +440,7 @@ lists every rule and the few deliberate differences from the Python tool.
 
 ## Status
 
-Dictator is at 0.1, and the main workflow works: import, edit, save and
+Dictator is at 0.2, and the main workflow works: import, edit, save and
 export in both front ends. The golden tests check each importer and exporter
 against files made by the original tools. Planned next:
 
@@ -376,8 +449,6 @@ against files made by the original tools. Planned next:
 - templates for standard objects;
 - undo/redo;
 - CANopenNode output;
-- a CMake module that generates the object dictionary as part of the
-  firmware build;
 - packaging.
 
 The [issue tracker](https://github.com/golovinengineer/canopen-dictator/issues) tracks all of it.

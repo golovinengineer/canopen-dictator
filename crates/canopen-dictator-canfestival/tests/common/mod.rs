@@ -36,12 +36,17 @@ pub fn canfestival_project() -> ObjectDictionary {
 }
 
 /// Compare generated C with raw gen_cfile output. Only the token stream is
-/// comparable (formatting differs), and two gen_cfile bugs that Dictator
-/// deliberately does not copy are undone in the reference: `0x-64` for a
+/// comparable (formatting differs). The reference's header comment, which
+/// names gen_cfile, is swapped for Dictator's, and two gen_cfile bugs that
+/// Dictator deliberately does not copy are undone in it: `0x-64` for a
 /// negative number (not valid C) and a doubled `const CONSTSTORE`.
 pub fn assert_same_tokens(ours: &str, theirs: &str, what: &str) {
     let squash = |t: &str| t.chars().filter(|c| !c.is_whitespace()).collect::<String>();
     let theirs = squash(theirs)
+        .replace(
+            "/*Filegeneratedbygen_cfile.py.Shouldnotbemodified.*/",
+            "/*GeneratedbyDictator.Donotedit.*/",
+        )
         .replace("0x-", "-0x")
         .replace("constCONSTSTOREconstCONSTSTORE", "constCONSTSTORE");
     let (a, b): (Vec<char>, Vec<char>) = (squash(ours).chars().collect(), theirs.chars().collect());
