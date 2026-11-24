@@ -61,6 +61,11 @@ jobs:
           cat > notes.md <<'EOF'
           ## Installing on macOS
 
+          With Homebrew (also links the `dictator` command):
+          `brew install --cask golovinengineer/tap/dictator`
+
+          Or by hand:
+
           1. Download `Dictator-*-macos-universal.dmg` below and open it.
           2. Drag `Dictator.app` onto the Applications folder next to it.
              (The `.zip` holds the same app, for scripts and Homebrew.)
@@ -69,7 +74,8 @@ jobs:
              **Open Anyway**, or run once in a terminal:
              `xattr -dr com.apple.quarantine /Applications/Dictator.app`
 
-          The same binary is the command line and terminal UI:
+          The same binary is the command line and terminal UI. Homebrew links it
+          for you; after a manual install:
           `sudo mkdir -p /usr/local/bin && sudo ln -sf /Applications/Dictator.app/Contents/MacOS/dictator /usr/local/bin/dictator`
           EOF
           prerelease=()
@@ -79,3 +85,37 @@ jobs:
             --notes-file notes.md --generate-notes \
             "${prerelease[@]}" \
             target/bundle/*.dmg target/bundle/*.zip target/bundle/*.sha256
+
+  # Point the cask in golovinengineer/homebrew-tap at the new release. Needs
+  # the secret HOMEBREW_TAP_TOKEN (fine-grained token, contents read/write on
+  # that repository only); without it the job only leaves a notice.
+  homebrew:
+    name: Homebrew tap
+    needs: macos
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Update Casks/dictator.rb
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [[ -z "$TAP_TOKEN" ]]; then
+            echo "::notice::HOMEBREW_TAP_TOKEN is not set; the Homebrew tap was not updated"
+            exit 0
+          fi
+          version=${TAG#v}
+          sha=$(curl -fsSL "https://github.com/$REPO/releases/download/$TAG/Dictator-$version-macos-universal.zip.sha256" | cut -d' ' -f1)
+          git clone --depth 1 "https://x-access-token:$TAP_TOKEN@github.com/golovinengineer/homebrew-tap.git" tap
+          scripts/update-cask.sh tap/Casks/dictator.rb "$version" "$sha"
+          cd tap
+          if git diff --quiet; then
+            echo "The cask is already at $version"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "dictator $version"
+          git push
