@@ -1,0 +1,23 @@
+# Sections of the generated release notes (gh release create --generate-notes).
+# A pull request goes into the first section whose label it has.
+changelog:
+  exclude:
+    labels:
+      - release
+  categories:
+    - title: Fixes
+      labels:
+        - bug
+    - title: Features
+      labels:
+        - enhancement
+    - title: Packaging and CI
+      labels:
+        - packaging
+        - testing
+    - title: Documentation
+      labels:
+        - documentation
+    - title: Other changes
+      labels:
+        - "*"
