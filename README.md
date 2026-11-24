@@ -254,6 +254,9 @@ the version, for checking which binary is on `PATH`.
 Keep only the `*.objdict.toml` in the firmware repository and let the
 pipeline produce the C library, the EDS and the docs from it. Every export
 of the same project gives the same bytes, so the result is reproducible.
+[canopen-dictator-example](https://github.com/golovinengineer/canopen-dictator-example)
+is a complete setup to copy: a CMake firmware project whose GitHub Actions
+workflow checks the project, builds it and publishes the EDS and docs.
 
 `dictator check PROJECT --strict` gates a pipeline on a correct object
 dictionary without generating anything.
