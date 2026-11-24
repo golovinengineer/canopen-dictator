@@ -56,3 +56,18 @@ jobs:
         run: tests/cmake/run.sh "$PWD/target/debug/dictator" "$RUNNER_TEMP/cmake-make"
       - name: CMake test project (Ninja)
         run: tests/cmake/run.sh "$PWD/target/debug/dictator" "$RUNNER_TEMP/cmake-ninja" -G Ninja
+      - name: CMake test project via dictator cmake install
+        run: |
+          set -eu
+          export HOME="$RUNNER_TEMP/home"
+          unset XDG_DATA_HOME
+          dictator="$PWD/target/debug/dictator"
+          "$dictator" cmake install
+          cmake -S tests/cmake -B "$RUNNER_TEMP/cmake-installed"
+          cmake --build "$RUNNER_TEMP/cmake-installed"
+          "$dictator" cmake uninstall
+          if cmake -S tests/cmake -B "$RUNNER_TEMP/cmake-uninstalled" >"$RUNNER_TEMP/uninstalled.log" 2>&1; then
+            echo "FAIL: find_package(Dictator) still works after uninstall" >&2
+            exit 1
+          fi
+          grep 'provided by "Dictator"' "$RUNNER_TEMP/uninstalled.log" || { cat "$RUNNER_TEMP/uninstalled.log"; exit 1; }

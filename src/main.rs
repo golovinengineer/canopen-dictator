@@ -7,6 +7,7 @@ use std::process::ExitCode;
 use anyhow::{Result, anyhow, bail};
 use canopen_dictator_core::project;
 
+mod cmake;
 #[cfg(feature = "gui")]
 mod gui;
 mod io;
@@ -35,6 +36,11 @@ Usage:
 
   dictator import FILE.xdd|FILE.od OUT.objdict.toml
       Convert a CANopenEditor XDD or a CanFestival .od into a project file.
+
+  dictator cmake install | uninstall | dir
+      install writes the CMake package for this binary to a per-user
+      directory and registers it, so find_package(Dictator) works without
+      hints; uninstall removes it; dir prints the directory.
 
   dictator -h | --help
       Print this help.
@@ -197,6 +203,7 @@ fn main() -> ExitCode {
     let result = match args.first().map(String::as_str) {
         Some("export") => export(&args[1..]),
         Some("import") => import(&args[1..]),
+        Some("cmake") => cmake::command(&args[1..]),
         Some("-h" | "--help" | "help") => {
             print!("{USAGE}");
             Ok(())

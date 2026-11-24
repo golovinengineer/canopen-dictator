@@ -221,6 +221,7 @@ complete paths with `Tab` and expand `~`.
 ```
 dictator export PROJECT [--c FILE.c] [--od FILE.od] [--eds FILE.eds] [--md FILE.md] [--strict]
 dictator import FILE.xdd|FILE.od OUT.objdict.toml
+dictator cmake install | uninstall | dir
 dictator --help
 dictator --version
 ```
@@ -231,6 +232,8 @@ what could not be carried over; with `--strict` they make `export` fail
 without writing anything, so a build stops on them. Neither command needs a
 display or a terminal. `--version` (also `-V` or `-v`) prints `dictator` and
 the version, for checking which binary is on `PATH`.
+`cmake` sets up `find_package(Dictator)`; see
+[Using with CMake](#using-with-cmake).
 
 ## Generating code in CI
 
@@ -332,11 +335,27 @@ always with `--strict`. `EDS` and `MARKDOWN` paths are relative to the current
 build directory; `cmake --build build --target od_docs` writes them.
 
 The module runs `DICTATOR_EXECUTABLE` if set, else `dictator` from `PATH`.
-For `find_package`, point CMake at this repository's `cmake/` directory
-(`-DDictator_DIR=<checkout>/cmake`); a requested version is checked against
-`dictator --version`. Dictator runs on the build host, so cross-compiling
-the firmware makes no difference. [`tests/cmake/`](tests/cmake/) is a
-working example.
+A version given to `find_package` is checked against `dictator --version`.
+There are three ways to make the module available:
+
+- **`dictator cmake install`**, once per user, however Dictator was
+  installed. It writes the package to `~/Library/Application
+  Support/dictator/cmake` on macOS (`$XDG_DATA_HOME/dictator/cmake`, by
+  default `~/.local/share/dictator/cmake`, elsewhere) and registers it in
+  CMake's user package registry (`~/.cmake/packages/Dictator`), so a plain
+  `find_package(Dictator)` works in any project, without `-D` flags or sudo.
+  The installed package runs the binary that installed it, wherever it is
+  and whatever is on `PATH`, unless `DICTATOR_EXECUTABLE` is set; run it
+  again after moving the binary. A newer binary's `cmake install` replaces
+  the files. `dictator cmake uninstall` removes them and the registry
+  entry; `dictator cmake dir` prints the directory, for `Dictator_DIR`.
+- **`-DDictator_DIR=<checkout>/cmake`**, pointing at this repository's
+  `cmake/` directory.
+- **Vendoring or `FetchContent`**: copy `cmake/Dictator.cmake` into your
+  project, or fetch this repository, and `include()` it.
+
+Dictator runs on the build host, so cross-compiling the firmware makes no
+difference. [`tests/cmake/`](tests/cmake/) is a working example.
 
 ## The project file
 

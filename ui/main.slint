@@ -94,6 +94,7 @@ export global App {
     callback export-eds();
     callback export-docs();
     callback export-od();
+    callback install-cmake-package();
     callback quit();
 
     callback filter-changed(string);
@@ -986,6 +987,15 @@ export component MainWindow inherits Window {
                     activated => {
                         App.export-docs();
                     }
+                }
+            }
+
+            MenuSeparator { }
+
+            MenuItem {
+                title: "Install CMake Package";
+                activated => {
+                    App.install-cmake-package();
                 }
             }
 

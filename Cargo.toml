@@ -28,6 +28,7 @@ include = [
     "/src/",
     "/ui/",
     "/build.rs",
+    "/cmake/",
     "/slint-project.json",
     "/assets/icon/png/dictator-256.png",
     "/assets/icon/png/dictator-dark-256.png",

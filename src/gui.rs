@@ -609,6 +609,12 @@ pub fn run(initial: Option<PathBuf>) -> Result<()> {
             io::export_markdown(od, path, &project)
         })
     });
+    on!(on_install_cmake_package, |g| crate::cmake::install()
+        .and_then(|_| crate::cmake::dir())
+        .map(|dir| g.status(format!(
+            "Installed the CMake package in {}",
+            dir.display()
+        ))));
     // Hiding the only window ends `run()`.
     on!(on_quit, |g| {
         if g.settle_unsaved() {
