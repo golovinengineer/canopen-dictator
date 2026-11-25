@@ -33,7 +33,7 @@ CI.
 
 CANopen tooling is split by stack and by platform. Each C stack comes with
 its own editor and its own file format: CanFestival has `objdictedit`
-(Python 2), CANopenNode has CANopenEditor (.NET, mainly Windows), and the
+(wxPython), CANopenNode has CANopenEditor (.NET, mainly Windows), and the
 commercial tools are Windows-only. EDS is the format everyone shares, but it
 isn't pleasant to edit or review. Moving a device between stacks, or
 between machines, usually means re-entering the dictionary.
@@ -48,12 +48,13 @@ Dictator aims to be one editor for all of them:
   CanFestival `.od` today. EDS import is next. From one project, generate
   EDS for integrators, Markdown docs, and the C object dictionary for your
   stack.
-- **C library for your stack.** CanFestival C is done. Upstream CanFestival
-  is no longer developed, so Dictator targets
-  [co_stack](https://github.com/RoboticsHardwareSolutions/co_stack), a
-  maintained CanFestival fork, and its output is token-identical to that
-  fork's `gen_cfile`, so firmware symbol names don't change when you switch.
-  CANopenNode v4 `OD.c`/`OD.h` is next.
+- **C library for your stack.** CanFestival-family C is done: Dictator
+  targets [co_stack](https://github.com/RoboticsHardwareSolutions/co_stack),
+  a CanFestival fork that diverged from CanFestival 3.x, and its output is
+  token-identical to that fork's `gen_cfile`, so firmware symbol names don't
+  change when you switch. CANopenNode v4 `OD.c`/`OD.h` is next, then current
+  upstream [CanFestival](https://github.com/beremiz/canfestival), reworked in
+  2026 with DCF project files.
 - **Not tied to one stack.** The same project generates code for each
   supported stack, so a team moving a device from one stack to another can
   build both from one dictionary during the move, instead of maintaining it
@@ -72,7 +73,7 @@ Dictator aims to be one editor for all of them:
 | --- | :---: | :---: | --- |
 | `*.objdict.toml` (Dictator project) | ✓ | ✓ | the native format |
 | CANopenEditor XDD (4.x) | ✓ | | |
-| CanFestival `.od` | ✓ | ✓ | opens in `objdictedit` |
+| CanFestival `.od` | ✓ | ✓ | opens in CanFestival 3.x `objdictedit` |
 | CanFestival C (`.c` + `.h`) | | ✓ | for co_stack; token-identical to `gen_cfile` |
 | EDS | | ✓ | CANopenEditor's layout |
 | Markdown documentation | | ✓ | CANopenEditor's layout |
