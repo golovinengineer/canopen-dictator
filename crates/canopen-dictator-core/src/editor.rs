@@ -250,8 +250,8 @@ impl Editor {
             .and_then(Path::file_name)
             .and_then(|n| n.to_str())
             .map(|n| {
-                n.trim_end_matches(&format!(".{}", project::EXTENSION))
-                    .trim_end_matches(".toml")
+                n.trim_end_matches(".toml")
+                    .trim_end_matches(&format!(".{}", project::EXTENSION))
                     .to_string()
             })
             .unwrap_or_else(|| "ObjDict".to_string())

@@ -23,7 +23,7 @@ dictator - CANopen object dictionary editor
 
 Usage:
   dictator [--gui | --tui] [PROJECT]
-      Open the editor, optionally loading a .objdict.toml project, or
+      Open the editor, optionally loading a .objdict project, or
       importing a CANopenEditor .xdd or a CanFestival .od.
       Started from a terminal it runs in the terminal; otherwise, or with
       --gui, it opens a window. --tui forces the terminal UI. The
@@ -39,7 +39,7 @@ Usage:
       that don't fit their type, and with --strict on import warnings too.
       Problems specific to one output show up only in export.
 
-  dictator import FILE.xdd|FILE.od OUT.objdict.toml
+  dictator import FILE.xdd|FILE.od OUT.objdict
       Convert a CANopenEditor XDD or a CanFestival .od into a project file.
 
   dictator cmake install | uninstall | dir
@@ -119,7 +119,7 @@ fn open(path: &Path) -> Result<canopen_dictator_core::model::ObjectDictionary> {
 
 fn import(args: &[String]) -> Result<()> {
     let [input, output] = args else {
-        bail!("import needs an input .xdd or .od and an output .objdict.toml");
+        bail!("import needs an input .xdd or .od and an output .objdict");
     };
     let od = open(Path::new(input))?;
     let output_path = Path::new(output);

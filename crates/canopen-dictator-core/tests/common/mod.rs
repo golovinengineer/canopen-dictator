@@ -24,5 +24,5 @@ pub fn sample_xdd() -> ObjectDictionary {
 
 /// The checked-in project: the XDD plus CanFestival settings.
 pub fn sample_project() -> ObjectDictionary {
-    project::load(&asset("example.objdict.toml")).unwrap()
+    project::load(&asset("example.objdict")).unwrap()
 }

@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn example_files_open_without_value_problems() {
-        for name in ["example.objdict.toml", "example.xdd", "example.od"] {
+        for name in ["example.objdict", "example.xdd", "example.od"] {
             let (_, warnings) = open(&asset(name)).unwrap();
             assert!(
                 !warnings.iter().any(|w| w.contains("before exporting")),
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn values_that_dont_fit_stop_every_export_and_warn_on_open() {
-        let mut od = project::load(&asset("example.objdict.toml")).unwrap();
+        let mut od = project::load(&asset("example.objdict")).unwrap();
         od.objects.get_mut(&0x1001).unwrap().subs[0].default = "300".into();
 
         let dir = std::env::temp_dir().join(format!("dictator-io-test-{}", std::process::id()));
@@ -159,7 +159,7 @@ mod tests {
             ("example.od", export_od),
             ("example.eds", export_eds),
             ("example.md", |od, p| {
-                export_markdown(od, p, "example.objdict.toml")
+                export_markdown(od, p, "example.objdict")
             }),
         ];
         for (name, export) in exports {
@@ -173,15 +173,18 @@ mod tests {
         }
 
         // Opening a project with such a value keeps it and says so.
-        let saved = dir.join("bad.objdict.toml");
         std::fs::create_dir_all(&dir).unwrap();
-        project::save(&od, &saved).unwrap();
-        let (opened, warnings) = open(&saved).unwrap();
+        for name in ["bad.objdict", "bad.objdict.toml"] {
+            let saved = dir.join(name);
+            project::save(&od, &saved).unwrap();
+            let (opened, warnings) = open(&saved).unwrap();
+            assert_eq!(opened.objects[&0x1001].subs[0].default, "300", "{name}");
+            assert_eq!(
+                warnings,
+                ["0x1001: default 300 does not fit UNSIGNED8; fix it before exporting"],
+                "{name}"
+            );
+        }
         std::fs::remove_dir_all(&dir).unwrap();
-        assert_eq!(opened.objects[&0x1001].subs[0].default, "300");
-        assert_eq!(
-            warnings,
-            ["0x1001: default 300 does not fit UNSIGNED8; fix it before exporting"]
-        );
     }
 }

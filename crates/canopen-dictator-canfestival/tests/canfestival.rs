@@ -20,8 +20,7 @@ fn c_and_header_match_canfestival_output() {
 /// fine for the generator).
 #[test]
 fn unicode_string_object_is_named_and_can_be_disabled() {
-    let mut od =
-        canopen_dictator_core::project::load(&common::asset("example.objdict.toml")).unwrap();
+    let mut od = canopen_dictator_core::project::load(&common::asset("example.objdict")).unwrap();
     let err = gen_c::generate(&od, "ObjDict.h").unwrap_err().to_string();
     assert!(
         err.contains("0x200D Demo unicode string (UNICODE_STRING)"),

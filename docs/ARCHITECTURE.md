@@ -16,7 +16,7 @@ project file and export EDS, CanFestival-compatible C and Markdown docs.
 
 | Decision | Why |
 | --- | --- |
-| Native project file is TOML (`*.objdict.toml`), XDD is import-only | XDD splits each object over three XML sections and rewrites timestamps on save, so diffs are unreadable |
+| Native project file is TOML (`*.objdict`), XDD is import-only | XDD splits each object over three XML sections and rewrites timestamps on save, so diffs are unreadable |
 | Hand-written TOML writer, one line per subindex, no column padding, no timestamps | Stable output; a change touches only the lines it concerns |
 | C output must equal what the old chain produced | Firmware references the generated symbols; verified against gen_cfile output in `assets/example/` |
 | CanFestival settings (node name/id/type, callbacks, save flags) are first-class project fields | XDD has no place for them |
@@ -41,7 +41,7 @@ plain `cargo run` from a terminal now opens the TUI.
 
 ### Project file format
 
-Documented at the top of `crates/canopen-dictator-core/src/project.rs`; `assets/example/example.objdict.toml`
+Documented at the top of `crates/canopen-dictator-core/src/project.rs`; `assets/example/example.objdict`
 is a full example. A VAR keeps its value fields on the object table; ARRAY and
 RECORD have a `sub = [ {...}, ]` array with sub 0 written explicitly, and
 per-subindex descriptions in `[object.0xNNNN.doc]`. Defaults and limits are

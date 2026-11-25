@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-//! Native project file (`*.objdict.toml`).
+//! Native project file (`*.objdict`; `*.objdict.toml` is read too).
 //!
 //! The file is written by hand rather than through a TOML serializer so the
 //! output is stable and diff-friendly: objects sorted by index, hex indexes,
@@ -40,7 +40,7 @@ use toml::{Table, Value};
 use crate::model::*;
 
 pub const FORMAT_VERSION: i64 = 1;
-pub const EXTENSION: &str = "objdict.toml";
+pub const EXTENSION: &str = "objdict";
 
 pub fn load(path: &Path) -> Result<ObjectDictionary> {
     let text =
