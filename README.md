@@ -161,9 +161,9 @@ cargo install --path . --no-default-features --features tui
 With `--no-default-features` alone you get just the command line
 (`check`, `import` and `export`), which is what a CI job needs.
 
-On Linux, the Slint window needs the usual desktop development packages
-(fontconfig, xkbcommon, and Wayland or X11). See
-[Slint's platform notes](https://slint.dev/docs) if the build complains.
+On Linux, building the window needs fontconfig's development package
+(`libfontconfig1-dev`); xkbcommon, Wayland or X11 and the desktop portal are
+loaded at run time.
 
 ## Quick start
 
