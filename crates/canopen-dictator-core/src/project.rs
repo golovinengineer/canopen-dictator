@@ -274,7 +274,8 @@ fn read_sub(t: &Table, sub: u8, name: String, ctx: &str) -> Result<SubObject> {
 }
 
 pub fn from_toml(text: &str) -> Result<ObjectDictionary> {
-    let root: Table = text.parse()?;
+    // Multi-line strings would keep the \r of CRLF line endings.
+    let root: Table = text.replace("\r\n", "\n").parse()?;
     match get_int(&root, "format") {
         Some(FORMAT_VERSION) => {}
         Some(v) => bail!("unsupported project format {v} (this build reads {FORMAT_VERSION})"),

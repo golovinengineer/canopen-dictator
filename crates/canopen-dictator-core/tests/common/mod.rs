@@ -22,8 +22,7 @@ pub fn sample_xdd() -> ObjectDictionary {
     canopen_dictator_core::xdd::load(&asset("example.xdd")).unwrap()
 }
 
-/// The checked-in project: the XDD plus CanFestival settings. Multi-line
-/// strings keep the CRLF a Windows checkout may give the file.
+/// The checked-in project: the XDD plus CanFestival settings.
 pub fn sample_project() -> ObjectDictionary {
-    project::from_toml(&read_asset("example.objdict.toml").replace("\r\n", "\n")).unwrap()
+    project::load(&asset("example.objdict.toml")).unwrap()
 }
