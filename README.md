@@ -59,7 +59,7 @@ Dictator aims to be one editor for all of them:
   build both from one dictionary during the move, instead of maintaining it
   twice. CanFestival and CANopenNode come first; other stacks can follow as
   they appear.
-- **A project file made for git.** One `*.objdict.toml` per device, written
+- **A project file made for git.** One `*.objdict` per device, written
   in a stable order with one line per subindex and no timestamps. A change
   shows up in review as exactly the lines it touched.
 - **Reproducible builds.** Exporting an unchanged project gives
@@ -70,7 +70,7 @@ Dictator aims to be one editor for all of them:
 
 | Format | Import | Export | Notes |
 | --- | :---: | :---: | --- |
-| `*.objdict.toml` (Dictator project) | ✓ | ✓ | the native format |
+| `*.objdict` (Dictator project) | ✓ | ✓ | the native format, TOML; `*.objdict.toml` opens too |
 | CANopenEditor XDD (4.x) | ✓ | | |
 | CanFestival `.od` | ✓ | ✓ | opens in `objdictedit` |
 | CanFestival C (`.c` + `.h`) | | ✓ | for co_stack; token-identical to `gen_cfile` |
@@ -79,6 +79,19 @@ Dictator aims to be one editor for all of them:
 
 CANopenNode v4 `OD.c`/`OD.h`, XDD export and EDS import are planned; see
 [the issue tracker](https://github.com/golovinengineer/canopen-dictator/issues).
+
+The project file is TOML under its own extension. To keep TOML highlighting,
+add this line to the repository's `.gitattributes` for GitHub:
+
+```
+*.objdict linguist-language=TOML
+```
+
+and this to the VS Code settings:
+
+```json
+"files.associations": { "*.objdict": "toml" }
+```
 
 ## Installing
 
@@ -156,7 +169,7 @@ On Linux, the Slint window needs the usual desktop development packages
 Open the example project that comes with the repository:
 
 ```sh
-dictator assets/example/example.objdict.toml
+dictator assets/example/example.objdict
 ```
 
 The example uses every data type the formats know, including a
@@ -166,18 +179,18 @@ the C export on it, disable that object first.
 Bring in an existing CANopenEditor or CanFestival project:
 
 ```sh
-dictator import MyDevice.xdd MyDevice.objdict.toml
+dictator import MyDevice.xdd MyDevice.objdict
 ```
 
 Generate everything the firmware and the integrators need:
 
 ```sh
-dictator export MyDevice.objdict.toml \
+dictator export MyDevice.objdict \
     --c src/ObjDict.c --eds MyDevice.eds --md docs/MyDevice.md
 ```
 
 You can also open an `.xdd` or `.od` directly in the editor. Saving then
-asks for a new `.objdict.toml` name next to it.
+asks for a new `.objdict` name next to it.
 
 ## Window or terminal
 
@@ -230,7 +243,7 @@ complete paths with `Tab` and expand `~`.
 ```
 dictator export PROJECT [--c FILE.c] [--od FILE.od] [--eds FILE.eds] [--md FILE.md] [--strict]
 dictator check PROJECT [--strict]
-dictator import FILE.xdd|FILE.od OUT.objdict.toml
+dictator import FILE.xdd|FILE.od OUT.objdict
 dictator cmake install | uninstall | dir
 dictator --help
 dictator --version
@@ -251,7 +264,7 @@ the version, for checking which binary is on `PATH`.
 
 ## Generating code in CI
 
-Keep only the `*.objdict.toml` in the firmware repository and let the
+Keep only the `*.objdict` in the firmware repository and let the
 pipeline produce the C library, the EDS and the docs from it. Every export
 of the same project gives the same bytes, so the result is reproducible.
 [canopen-dictator-example](https://github.com/golovinengineer/canopen-dictator-example)
@@ -280,9 +293,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: golovinengineer/canopen-dictator@v0.2.0
-      - run: dictator check device.objdict.toml --strict
+      - run: dictator check device.objdict --strict
       - run: |
-          dictator export device.objdict.toml \
+          dictator export device.objdict \
             --c generated/ObjDict.c --eds generated/device.eds --md generated/device.md
       - uses: actions/upload-artifact@v7
         with:
@@ -307,8 +320,8 @@ object-dictionary:
     - export PATH="$CARGO_HOME/bin:$PATH"
     - command -v dictator || cargo install canopen-dictator
         --version $DICTATOR_VERSION --locked --no-default-features
-    - dictator check device.objdict.toml --strict
-    - dictator export device.objdict.toml
+    - dictator check device.objdict --strict
+    - dictator export device.objdict
         --c generated/ObjDict.c --eds generated/device.eds --md generated/device.md
   artifacts:
     paths: [generated/]
@@ -323,7 +336,7 @@ builds without Dictator, add a check that fails when someone edits the
 project but forgets to regenerate:
 
 ```sh
-dictator export device.objdict.toml --c firmware/ObjDict.c
+dictator export device.objdict --c firmware/ObjDict.c
 git diff --exit-code firmware/
 ```
 
@@ -336,7 +349,7 @@ committed:
 ```cmake
 find_package(Dictator 0.2 REQUIRED)  # or include(path/to/Dictator.cmake)
 dictator_add_object_dictionary(od
-    PROJECT  ${CMAKE_CURRENT_SOURCE_DIR}/device.objdict.toml  # or .xdd / .od
+    PROJECT  ${CMAKE_CURRENT_SOURCE_DIR}/device.objdict  # or .xdd / .od
     STACK    canfestival
     NAME     ObjDict           # ObjDict.c / ObjDict.h
     LINK     canfestival       # your target that provides the co_stack headers
@@ -419,7 +432,7 @@ sub = [
 
 The format is documented at the top of
 [`crates/canopen-dictator-core/src/project.rs`](crates/canopen-dictator-core/src/project.rs),
-and [`assets/example/example.objdict.toml`](assets/example/example.objdict.toml)
+and [`assets/example/example.objdict`](assets/example/example.objdict)
 uses every feature.
 
 You can edit the file by hand. Dictator rewrites it in its canonical form

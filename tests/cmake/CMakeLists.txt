@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
 #
 # Builds the example's object dictionary with cmake/Dictator.cmake; run by
-# run.sh. The example .objdict.toml keeps a UNICODE_STRING object that
-# CanFestival can't export, so this uses the example's CanFestival .od.
+# run.sh. The example .objdict keeps a UNICODE_STRING object that
+# CanFestival can't export, so this uses the example's CanFestival .od;
+# run.sh also builds .objdict and .objdict.toml imports of it via OD_PROJECT.
 
 cmake_minimum_required(VERSION 3.20...4.5)
 project(dictator_cmake_test LANGUAGES C)
@@ -20,9 +21,12 @@ FetchContent_MakeAvailable(co_stack)
 add_library(canfestival INTERFACE)
 target_include_directories(canfestival INTERFACE "${co_stack_SOURCE_DIR}/include")
 
+set(OD_PROJECT "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/example/example.od"
+  CACHE FILEPATH "Project file the object dictionary is generated from")
+
 find_package(Dictator 0.2 REQUIRED)
 dictator_add_object_dictionary(od
-  PROJECT  "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/example/example.od"
+  PROJECT  "${OD_PROJECT}"
   STACK    canfestival
   NAME     ObjDict
   LINK     canfestival

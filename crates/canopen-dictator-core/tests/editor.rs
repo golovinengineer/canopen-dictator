@@ -190,12 +190,13 @@ fn filter_groups_matching_objects() {
 fn save_marks_clean() {
     let dir = std::env::temp_dir().join(format!("dictator-editor-test-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let path = dir.join("t.objdict.toml");
-    let mut e = Editor::new(ObjectDictionary::new_default(), None, true);
-    e.save_to(path.clone()).unwrap();
-    assert!(!e.dirty());
-    assert_eq!(e.file_label(), "t.objdict.toml");
-    assert_eq!(e.project_stem(), "t");
+    for name in ["t.objdict", "t.objdict.toml"] {
+        let mut e = Editor::new(ObjectDictionary::new_default(), None, true);
+        e.save_to(dir.join(name)).unwrap();
+        assert!(!e.dirty());
+        assert_eq!(e.file_label(), name);
+        assert_eq!(e.project_stem(), "t");
+    }
     std::fs::remove_dir_all(&dir).unwrap();
 }
 

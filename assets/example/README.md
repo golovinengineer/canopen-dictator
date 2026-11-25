@@ -15,7 +15,7 @@ tools produce from it. No real project data.
 | `OD.c`, `OD.h` | CANopenEditor (CANopenNode v4 exporter) | `example.xdd` |
 | `example.od` | CanFestival objdictedit, via `canfestival_chain.py` | `example.eds` |
 | `ObjDict.c`, `ObjDict.h` | CanFestival gen_cfile, via `canfestival_chain.py` | `example.od` |
-| `example.objdict.toml` | Dictator | `example.xdd` plus the CanFestival settings below |
+| `example.objdict` | Dictator | `example.xdd` plus the CanFestival settings below |
 
 ## Regenerating
 
@@ -33,7 +33,7 @@ container exec co_stack_gen python2.7 /workdir/assets/example/canfestival_chain.
     /workdir/assets/example/ObjDict.c
 ```
 
-Then re-import `example.objdict.toml` with Dictator and set the CanFestival
+Then re-import `example.objdict` with Dictator and set the CanFestival
 settings again (the test `checked_in_sample_project_matches_xdd` says
 which).
 

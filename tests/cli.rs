@@ -93,16 +93,18 @@ fn check_fails_on_values_that_wont_export() {
 
     let dir = std::env::temp_dir().join(format!("dictator-cli-check-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let bad = dir.join("bad.objdict.toml");
-    let project = std::fs::read_to_string(examples.join("example.objdict.toml")).unwrap();
+    let project = std::fs::read_to_string(examples.join("example.objdict")).unwrap();
     let project = project.replacen(r#"default = "0x00""#, r#"default = "300""#, 1);
-    std::fs::write(&bad, project).unwrap();
-    let out = check(&bad);
+    for name in ["bad.objdict", "bad.objdict.toml"] {
+        let bad = dir.join(name);
+        std::fs::write(&bad, &project).unwrap();
+        let out = check(&bad);
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(!out.status.success(), "{name}: {:?}", out.status);
+        assert!(
+            stderr.contains("0x1001: default 300 does not fit UNSIGNED8"),
+            "{name}: {stderr}"
+        );
+    }
     std::fs::remove_dir_all(&dir).unwrap();
-    let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(!out.status.success(), "{:?}", out.status);
-    assert!(
-        stderr.contains("0x1001: default 300 does not fit UNSIGNED8"),
-        "{stderr}"
-    );
 }

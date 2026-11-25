@@ -28,7 +28,7 @@ pub fn sample_xdd() -> ObjectDictionary {
 /// take left out (UNICODE_STRING 0x200D; DOMAIN 0x200E has no initial
 /// value, which gen_cfile refuses).
 pub fn canfestival_project() -> ObjectDictionary {
-    let mut od = project::load(&asset("example.objdict.toml")).unwrap();
+    let mut od = project::load(&asset("example.objdict")).unwrap();
     for i in [0x200D, 0x200E] {
         od.objects.get_mut(&i).unwrap().disabled = true;
     }

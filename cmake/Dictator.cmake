@@ -4,7 +4,7 @@
 # Needs CMake 3.20 or newer.
 #
 #   dictator_add_object_dictionary(<target>
-#       PROJECT  <file>          # .objdict.toml, .xdd or .od
+#       PROJECT  <file>          # .objdict (or .objdict.toml), .xdd or .od
 #       STACK    canfestival
 #       NAME     <name>          # <name>.c / <name>.h
 #       [LINK    <targets>...]   # the stack's headers, linked PUBLIC

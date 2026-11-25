@@ -466,7 +466,10 @@ impl Gui {
         }
         let picked = self
             .dialog()
-            .add_filter("Object dictionary", &["toml", "xdd", "xdc", "od"])
+            .add_filter(
+                "Object dictionary",
+                &["objdict", "toml", "xdd", "xdc", "od"],
+            )
             .pick_file();
         match picked {
             Some(path) => self.open_path(&path),
@@ -491,7 +494,7 @@ impl Gui {
         };
         match self
             .dialog()
-            .add_filter("Object dictionary project", &["toml"])
+            .add_filter("Object dictionary project", &["objdict", "toml"])
             .set_file_name(suggested)
             .save_file()
         {
