@@ -46,6 +46,17 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Test
         run: cargo test --workspace --locked
+      - name: Make dictatorw.exe
+        shell: bash
+        run: cargo build --locked && scripts/dictatorw.sh target/debug/dictator.exe
+      - name: Check dictatorw.exe
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $dumpbin = (Get-ChildItem "$vs\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe")[0].FullName
+          & $dumpbin /headers target\debug\dictatorw.exe | Select-String 'subsystem \(Windows GUI\)' -OutVariable gui
+          if (-not $gui) { exit 1 }
+          # Same program: run with its output captured, it prints as dictator.exe does.
+          if ((target\debug\dictatorw.exe --version) -ne (target\debug\dictator.exe --version)) { exit 1 }
 
   linux:
     name: Linux (clippy, test)

@@ -226,6 +226,15 @@ fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("error: {e:#}");
+            // dictatorw.exe started from Explorer has no stderr.
+            #[cfg(all(windows, feature = "gui"))]
+            if std::os::windows::io::AsRawHandle::as_raw_handle(&std::io::stderr()).is_null() {
+                rfd::MessageDialog::new()
+                    .set_level(rfd::MessageLevel::Error)
+                    .set_title("Dictator")
+                    .set_description(format!("{e:#}"))
+                    .show();
+            }
             ExitCode::FAILURE
         }
     }
