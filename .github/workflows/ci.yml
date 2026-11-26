@@ -54,6 +54,10 @@ jobs:
           Copy-Item target\debug\dictator.exe target\debug\dictatorw.exe
           & "$bin\editbin.exe" /nologo /SUBSYSTEM:WINDOWS target\debug\dictatorw.exe
           if (-not (& "$bin\dumpbin.exe" /headers target\debug\dictatorw.exe | Select-String 'subsystem \(Windows GUI\)')) { exit 1 }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows
+          path: target/debug/dictator*.exe
 
   linux:
     name: Linux (clippy, test)
