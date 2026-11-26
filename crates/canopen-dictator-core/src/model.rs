@@ -432,7 +432,7 @@ impl ObjectDictionary {
         od.device.granularity = 8;
         od.device.baud_rates = vec![1000];
         od.device.file_version = "1".into();
-        od.device.created = now_timestamp();
+        od.device.created = timestamp(std::time::SystemTime::now());
 
         let mut o = Object::new("Device type", ObjectKind::Var);
         o.subs[0].access = Access::Ro;
@@ -614,9 +614,9 @@ pub fn check_limits(
     }
 }
 
-/// Current UTC time as `YYYY-MM-DDTHH:MM:SS`.
-pub fn now_timestamp() -> String {
-    let secs = std::time::SystemTime::now()
+/// `t` in UTC as `YYYY-MM-DDTHH:MM:SS`.
+pub fn timestamp(t: std::time::SystemTime) -> String {
+    let secs = t
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0);
