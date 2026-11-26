@@ -46,6 +46,8 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Test
         run: cargo test --workspace --locked
+      - name: Check version resource
+        run: if ((Get-Item target\debug\dictator.exe).VersionInfo.ProductVersion -ne ((cargo pkgid) -replace '.*[#@]')) { exit 1 }
 
   linux:
     name: Linux (clippy, test)

@@ -10,6 +10,43 @@ fn main() {
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         embed_info_plist();
     }
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        embed_windows_resources();
+    }
+}
+
+/// Icon, version information and manifest for the Windows executable.
+/// rfd's custom dialog buttons import TaskDialogIndirect from common controls
+/// v6, so the exe doesn't start without this manifest. DPI awareness is left
+/// out: winit sets it at run time.
+fn embed_windows_resources() {
+    println!("cargo:rerun-if-changed=assets/icon/dictator.ico");
+    winresource::WindowsResource::new()
+        .set_icon("assets/icon/dictator.ico")
+        .set("ProductName", "Dictator")
+        .set("FileDescription", "Dictator")
+        .set_manifest(
+            r#"<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+<dependency>
+    <dependentAssembly>
+        <assemblyIdentity type="win32" name="Microsoft.Windows.Common-Controls" version="6.0.0.0" processorArchitecture="*" publicKeyToken="6595b64144ccf1df" language="*"/>
+    </dependentAssembly>
+</dependency>
+<compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+        <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+    </application>
+</compatibility>
+<application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+        <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
+    </windowsSettings>
+</application>
+</assembly>
+"#,
+        )
+        .compile_for("dictator")
+        .expect("compiling Windows resources");
 }
 
 /// macOS names an application after its bundle. A plain executable has none,
