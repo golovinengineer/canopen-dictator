@@ -5,6 +5,7 @@
 
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::time::SystemTime;
 
 use anyhow::{Context, Result, anyhow, bail};
 
@@ -22,7 +23,11 @@ pub struct Import {
 pub fn load(path: &Path) -> Result<Import> {
     let text =
         std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-    parse(&text).with_context(|| format!("parsing {}", path.display()))
+    let mut import = parse(&text).with_context(|| format!("parsing {}", path.display()))?;
+    // A .od has no creation date; its mtime keeps exports reproducible.
+    let mtime = std::fs::metadata(path).and_then(|m| m.modified());
+    import.od.device.created = timestamp(mtime.unwrap_or_else(|_| SystemTime::now()));
+    Ok(import)
 }
 
 // --------------------------------------------------------- mapping tables
@@ -259,6 +264,7 @@ struct SubDesc {
     pdo: bool,
 }
 
+/// Like [`load`], from text: `device.created` stays empty.
 pub fn parse(text: &str) -> Result<Import> {
     let node = parse_pickle(text)?;
     match &node {
@@ -296,7 +302,6 @@ fn from_node(node: &Py) -> Result<Import> {
     od.device.granularity = 8;
     od.device.baud_rates = vec![1000];
     od.device.file_version = "1".into();
-    od.device.created = now_timestamp();
     od.device.product_name = text("Name");
     od.device.description = text("Description");
     od.canfestival.node_name = text("Name");
