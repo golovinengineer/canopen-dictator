@@ -16,8 +16,9 @@ fn main() {
 }
 
 /// Icon, version information and manifest for the Windows executable.
-/// Common controls v6 provide the TaskDialog behind rfd's custom message
-/// dialog buttons. DPI awareness is left out: winit sets it at run time.
+/// rfd's custom dialog buttons import TaskDialogIndirect from common controls
+/// v6, so the exe doesn't start without this manifest. DPI awareness is left
+/// out: winit sets it at run time.
 fn embed_windows_resources() {
     println!("cargo:rerun-if-changed=assets/icon/dictator.ico");
     winresource::WindowsResource::new()
